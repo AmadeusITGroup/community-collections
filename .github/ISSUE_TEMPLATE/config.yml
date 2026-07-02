@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: 💬 GitHub Discussions
+    url: https://github.com/AmadeusITGroup/community-collections/discussions
+    about: Ask questions, share ideas, or discuss the project
+  - name: 📚 Documentation
+    url: https://github.com/AmadeusITGroup/community-collections#readme
+    about: Read the project documentation

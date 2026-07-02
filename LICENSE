@@ -1,0 +1,39 @@
+# Internal Use License
+
+This software is proprietary to Amadeus and is intended for internal use only.
+
+## License Terms
+
+**Copyright (c) Amadeus. All rights reserved.**
+
+### Permitted Uses
+
+This software may be used, modified, and distributed internally within Amadeus for business purposes.
+
+### Restrictions
+
+- This software may not be distributed externally
+- This software may not be used for commercial purposes outside Amadeus
+- This software may not be reverse engineered, decompiled, or disassembled
+- No warranty is provided, express or implied
+
+### Ownership
+
+All intellectual property rights in this software belong to Amadeus.
+
+### Contact
+
+For questions about licensing or usage, contact:
+- Internal: security@amadeus.com
+- Legal: legal@amadeus.com
+
+---
+
+## Note for Contributors
+
+By contributing to this project, you agree that your contributions will be licensed under the same terms as the project itself.
+
+## Organization Policy
+
+This license follows Amadeus's internal software development policies. For more information, see:
+[Link to organization policy]
