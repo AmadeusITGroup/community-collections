@@ -1,0 +1,63 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Issue Triage Proposals",
+  "description": "Schema for issue triage proposals output",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "required": ["number", "url", "title", "proposed_labels", "proposed_priority", "proposed_comment", "reasons", "already_triaged", "potential_duplicates"],
+    "properties": {
+      "number": {
+        "type": "integer",
+        "description": "GitHub issue number"
+      },
+      "url": {
+        "type": "string",
+        "format": "uri",
+        "description": "URL to the issue"
+      },
+      "title": {
+        "type": "string",
+        "description": "Issue title"
+      },
+      "proposed_labels": {
+        "type": "array",
+        "items": { "type": "string" },
+        "description": "Labels to apply to this issue"
+      },
+      "proposed_priority": {
+        "type": "string",
+        "enum": ["critical", "high", "medium", "low"],
+        "description": "Proposed priority level based on content analysis"
+      },
+      "proposed_comment": {
+        "type": "string",
+        "description": "Comment to add to this issue (empty string if none)"
+      },
+      "reasons": {
+        "type": "array",
+        "items": { "type": "string" },
+        "description": "Reasons for the proposed labels/comment"
+      },
+      "already_triaged": {
+        "type": "boolean",
+        "description": "Whether the issue appears to have been already triaged"
+      },
+      "potential_duplicates": {
+        "type": "array",
+        "description": "List of potential duplicate issues",
+        "items": {
+          "type": "object",
+          "properties": {
+            "number": { "type": "integer" },
+            "url": { "type": "string" },
+            "title": { "type": "string" },
+            "similarity": { "type": "number" },
+            "match_type": { "type": "string", "enum": ["title", "content"] }
+          }
+        }
+      }
+    },
+    "additionalProperties": false
+  }
+}
