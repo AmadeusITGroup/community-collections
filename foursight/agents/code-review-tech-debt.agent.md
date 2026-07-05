@@ -1,7 +1,7 @@
 ---
 name: Code Review - Technical Debt
 description: "Subagent for code review: detects code duplication, convention violations, maintainability issues, and unnecessary code. Use when reviewing code quality and technical debt in a pull request or codebase assessment."
-tools: [execute/getTerminalOutput, execute/awaitTerminal, execute/killTerminal, execute/runInTerminal, read, search]
+tools: [execute/getTerminalOutput, execute/killTerminal, execute/sendToTerminal, execute/runInTerminal, read, search]
 agents: []
 user-invocable: false
 ---

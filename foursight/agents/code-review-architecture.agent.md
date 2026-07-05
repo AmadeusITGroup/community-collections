@@ -1,9 +1,8 @@
 ---
 name: Code Review - Architecture
 description: "Subagent for code review: validates architectural consistency, detects reinvented patterns, ensures module boundaries are respected, and checks alignment with existing project structure. Use when reviewing architecture compliance in a pull request or codebase assessment."
-tools: [execute/getTerminalOutput, execute/awaitTerminal, execute/killTerminal, execute/runInTerminal, read, search]
+tools: [execute/getTerminalOutput, execute/killTerminal, execute/sendToTerminal, execute/runInTerminal, read, search]
 agents: []
-model: Claude Sonnet 4.6 High (copilot)
 user-invocable: false
 ---
 

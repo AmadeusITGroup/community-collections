@@ -1,7 +1,7 @@
 ---
 name: Code Review - QA
 description: "Subagent for code review: analyzes test quality, coverage gaps, test utils reuse, and ensures tests verify functionality not implementation details. Use when reviewing tests in a pull request or codebase assessment."
-tools: [execute/getTerminalOutput, execute/awaitTerminal, execute/killTerminal, execute/runInTerminal, read, search]
+tools: [execute/getTerminalOutput, execute/killTerminal, execute/sendToTerminal, execute/runInTerminal, read, search]
 agents: []
 user-invocable: false
 ---
