@@ -1,0 +1,30 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/AmadeusITGroup/prompt-registry/refs/heads/main/schemas/collection.schema.json
+id: foursight-code-assessment
+name: FourSight Code Assessment
+description: "Skill for comprehensive code assessment using four specialized evaluation dimensions — functionality, performance, maintainability, and security — to provide a holistic analysis of code quality."
+tags:
+  - four-sight-code-assessment
+  - code-assessment
+  - code-quality
+  - functionality
+  - performance
+  - maintainability
+  - security
+items:
+  - path: foursight/code-assessment/skills/foursight-code-assessment/SKILL.md
+    kind: skill
+  - path: foursight/agents/code-review-qa.agent.md
+    kind: agent
+  - path: foursight/agents/code-review-tech-debt.agent.md
+    kind: agent
+  - path: foursight/agents/code-review-functional.agent.md
+    kind: agent
+  - path: foursight/agents/code-review-architecture.agent.md
+    kind: agent
+version: "1.0.0"
+author: "Guillaume Blanc"
+readme:
+  path: foursight/code-assessment/README.md
+display:
+  ordering: manual
+  show_badge: true

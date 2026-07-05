@@ -2,6 +2,8 @@
 id: amadeus-ospo
 name: Amadeus OSPO
 description: Skills collection for Amadeus OSPO - InnerSource and Open Source readiness assessments, GitHub triage tools
+author: "Waldek Herka"
+version: "1.0.0"
 tags:
   - ospo
   - innersource
@@ -9,24 +11,24 @@ tags:
   - github
   - triage
 items:
-  - path: skills/innersource-readiness/SKILL.md
+  - path: ospo/skills/innersource-readiness/SKILL.md
     kind: skill
-  - path: skills/open-source-readiness/SKILL.md
+  - path: ospo/skills/open-source-readiness/SKILL.md
     kind: skill
-  - path: skills/github-issues-triage/SKILL.md
+  - path: ospo/skills/github-issues-triage/SKILL.md
     kind: skill
-  - path: skills/github-prs-triage/SKILL.md
+  - path: ospo/skills/github-prs-triage/SKILL.md
     kind: skill
-  - path: prompts/assess-innersource-readiness.prompt.md
+  - path: ospo/prompts/assess-innersource-readiness.prompt.md
     kind: prompt
-  - path: prompts/assess-opensource-readiness.prompt.md
+  - path: ospo/prompts/assess-opensource-readiness.prompt.md
     kind: prompt
-  - path: prompts/triage-issues.prompt.md
+  - path: ospo/prompts/triage-issues.prompt.md
     kind: prompt
-  - path: prompts/triage-pull-requests.prompt.md
+  - path: ospo/prompts/triage-pull-requests.prompt.md
     kind: prompt
 readme:
-  path: docs/ospo-collection/README.md
+  path: ospo/README.md
 display:
   ordering: manual
   show_badge: true

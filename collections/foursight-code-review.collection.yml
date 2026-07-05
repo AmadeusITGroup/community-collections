@@ -1,0 +1,32 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/AmadeusITGroup/prompt-registry/refs/heads/main/schemas/collection.schema.json
+id: foursight-code-review
+name: FourSight Code Review
+description: "Skill and agents to do PR reviews with four specialized subagents acting as distinct personas — QA engineer, tech debt reviewer, functional analyst, and architect — each providing independent findings consolidated into a single prioritized report."
+tags:
+  - four-sight-code-review
+  - pr-review
+  - code-review
+  - qa
+  - technical-debt
+  - functional-review
+  - architecture
+items:
+  - path: foursight/code-review/skills/foursight-code-review/SKILL.md
+    kind: skill
+  - path: foursight/code-review/agents.foursight-code-review.agent.md
+    kind: agent
+  - path: foursight/agents/code-review-qa.agent.md
+    kind: agent
+  - path: foursight/agents/code-review-tech-debt.agent.md
+    kind: agent
+  - path: foursight/agents/code-review-functional.agent.md
+    kind: agent
+  - path: foursight/agents/code-review-architecture.agent.md
+    kind: agent
+version: "1.0.1"
+author: "Guillaume Blanc"
+readme:
+  path: foursight/code-review/README.md
+display:
+  ordering: manual
+  show_badge: true
