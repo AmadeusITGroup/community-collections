@@ -1,7 +1,7 @@
 ---
 name: Code Review - Functional
 description: "Subagent for code review: validates functional correctness, detects missing edge cases, and ensures the code delivers on its described intent. Use when reviewing functional completeness in a pull request or codebase assessment."
-tools: [execute/getTerminalOutput, execute/awaitTerminal, execute/killTerminal, execute/runInTerminal, read, search]
+tools: [execute/getTerminalOutput, execute/killTerminal, execute/sendToTerminal, execute/runInTerminal, read, search]
 agents: []
 user-invocable: false
 ---
