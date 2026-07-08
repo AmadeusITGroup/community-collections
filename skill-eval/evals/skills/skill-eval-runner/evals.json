@@ -1,0 +1,136 @@
+{
+  "schema_version": "1.0.0",
+  "skill_name": "skill-eval-runner",
+  "skill_version": "1.0.0",
+  "description": "Behavioral eval suite for skill-eval-runner. The skill's product is orchestration artifacts (sub-agent dispatch plans, executor/grader/comparator prompts, the notification sidecar) plus gate decisions and result diagnosis, so each eval hands the agent concrete material (the staged release-note-writer fixture skill, or a pre-populated fixture workspace) and asks it to PRODUCE or DIAGNOSE an artifact — never to quiz it on documentation. Covers the two 'When NOT to use' boundaries (stop when no evals.json; defer generation to skill-eval-generator), the baseline EXECUTE dispatch (2xN executors, per-variant sandboxes, without_skill isolation, files staging, parallel launch), the iteration-2 regression dispatch (reuse without_skill, current-vs-previous pairing), composing a grader prompt with grading.json placed as a sibling of outputs/, the blind A/B dispatch (assign_ab -> blind comparator -> resolve_comparisons), writing the notification.json sidecar without computing host telemetry, diagnosing a misplaced-grading.json 0% pass rate from a real workspace, and presenting the PHASE 4 report summary from a benchmark.json.",
+  "evals": [
+    {
+      "id": 1,
+      "name": "stop-when-no-evals-json",
+      "prompt": "Run the evals for the nonexistent-widget-skill and tell me the pass rate.",
+      "expected_output": "The skill looks for evals/skills/nonexistent-widget-skill/evals.json (and the colocated skills/nonexistent-widget-skill/evals/evals.json fallback), finds neither, tells the user 'No evals found for this skill.', and stops. It must NOT fabricate a pass rate, benchmark, or grading result, and must NOT scaffold a workspace or spawn executors.",
+      "expectations": [
+        "Response looks for the skill's evals.json in the canonical evals/skills/{skill_name}/ location (and the colocated skills/{skill_name}/evals/ fallback) before doing anything else.",
+        "Response reports that no evals exist for the skill and stops, rather than proceeding into PREPARE/EXECUTE.",
+        "Response does NOT fabricate a pass rate, blind-comparison result, or benchmark numbers for a suite it never ran, and does not scaffold a workspace or spawn executors."
+      ]
+    },
+    {
+      "id": 2,
+      "name": "defer-eval-generation-to-generator",
+      "prompt": "I just finished writing a brand-new skill and it has no evals yet. Create the eval test cases for it so we have coverage, then run them.",
+      "expected_output": "The skill recognizes the 'create the eval test cases' part is a GENERATION request, which the runner does not do — the runner requires an existing evals.json. It defers eval authoring to /skill-eval-generator (or instructs the user to create evals.json), and declines to run a pipeline against a skill that has no test cases yet.",
+      "expectations": [
+        "Response distinguishes generating evals from running them and identifies the 'create the test cases' request as generation, which is outside the runner's job.",
+        "Response routes the user to /skill-eval-generator (or to authoring evals.json manually) for the generation step instead of inventing test cases itself.",
+        "Response does not scaffold a workspace or spawn executors for a skill that still has no evals.json."
+      ]
+    },
+    {
+      "id": 3,
+      "name": "compose-baseline-executor-prompts",
+      "prompt": "You are in PHASE 2 (EXECUTE) of iteration 1 for the release-note-writer skill; its skill files and evals.json are staged for you (3 evals; eval 2 declares a files input). Assume PREPARE already created the workspace at evals/skills/release-note-writer/workspace/iteration-1/. Write out the exact set of executor sub-agent prompts you would dispatch for this phase, state how many executors there are in total, and say how you would launch them.",
+      "expected_output": "6 executors total (3 evals x 2 variants, since iteration 1 is all-baseline), dispatched in parallel in a single message. Each eval gets a current_skill prompt and a without_skill prompt. Every prompt names a per-variant sandbox working root under eval-{id}-{name}/{variant}/sandbox/ and directs output to that variant's outputs/response.md + outputs/metrics.json. Each without_skill prompt explicitly forbids reading skills/ and knowledge-bases/. Eval 2's prompts reference its staged merged-prs.md input inside the sandbox.",
+      "files": [
+        "files/fixture-skills/release-note-writer/SKILL.md",
+        "files/fixture-skills/release-note-writer/evals.json",
+        "files/fixture-skills/release-note-writer/files/merged-prs.md"
+      ],
+      "expectations": [
+        "Response produces 6 executors total for iteration 1 (3 evals x 2 variants) using the baseline rule of 2 executors per eval, not 3 or fewer.",
+        "Response emits both a current_skill and a without_skill prompt for every one of the 3 evals.",
+        "Each without_skill prompt explicitly instructs the executor NOT to read any files under skills/ or knowledge-bases/, while the current_skill prompt tells it to read the release-note-writer SKILL.md.",
+        "Every produced prompt scopes writes to a per-variant sandbox (eval-{id}-{name}/{variant}/sandbox/) and points response.md + metrics.json into that variant's outputs/ directory.",
+        "Response states the executors are launched in parallel in a single message, and eval 2's prompts point the executor at its staged merged-prs.md input rather than omitting the file."
+      ]
+    },
+    {
+      "id": 4,
+      "name": "regression-iteration-dispatch-plan",
+      "prompt": "It is now iteration 2 for release-note-writer. Iteration 1 already ran successfully for the 3 evals in the staged evals.json. Since then a 4th eval, 'security-advisory-section', was added. Produce the PHASE 2 dispatch plan for iteration 2: how many executors, which variant(s) each of the 4 evals gets, and how they are launched. Also note what the blind comparator will pair for the regression evals versus the new one.",
+      "expected_output": "The 4th eval is a baseline/new eval (2 executors: current_skill + without_skill). Evals 1-3 are regression evals (1 executor each, current_skill only; their without_skill is reused from the baseline iteration, and their previous_skill is iteration 1's current_skill). Total = 2*1 + 1*3 = 5 executors, launched in parallel. In blind comparison, the 3 regression evals pair current_skill vs previous_skill (iteration-over-iteration), while the new eval pairs current_skill vs without_skill.",
+      "files": [
+        "files/fixture-skills/release-note-writer/evals.json"
+      ],
+      "expectations": [
+        "Response computes 5 total executors using 2 x count(new evals) + 1 x count(regression evals) = 2x1 + 1x3.",
+        "Response gives the new 4th eval both current_skill and without_skill executors, and gives each of the 3 existing evals only a current_skill executor.",
+        "Response states that the 3 existing evals' without_skill results are reused from the baseline iteration rather than re-run, as the reason their without_skill executor is skipped.",
+        "Response says the 3 regression evals are compared current_skill vs previous_skill (iteration 1's current_skill), while the new eval is compared current_skill vs without_skill.",
+        "Response launches the executors in parallel in a single batch rather than sequentially per eval."
+      ]
+    },
+    {
+      "id": 5,
+      "name": "grader-prompt-grading-json-placement",
+      "prompt": "For iteration 1 of release-note-writer, write the grader sub-agent prompt you would dispatch to grade eval 1's current_skill response. The response lives at evals/skills/release-note-writer/workspace/iteration-1/eval-1-single-feature-release/current_skill/outputs/response.md. Make the grading.json output path explicit in the prompt.",
+      "expected_output": "A grader prompt that inlines eval 1's expectations (and expected_output) from evals.json and directs grading.json to the VARIANT ROOT as a sibling of outputs/ — i.e. eval-1-single-feature-release/current_skill/grading.json, derived as response_path.parent.parent / 'grading.json' — NOT under outputs/. The prompt should not ask the grader to read metrics.json.",
+      "files": [
+        "files/fixture-skills/release-note-writer/evals.json"
+      ],
+      "expectations": [
+        "The produced grader prompt writes grading.json to the variant root (eval-1-single-feature-release/current_skill/grading.json), a sibling of outputs/, and NOT to a path inside outputs/.",
+        "Response shows awareness that placing grading.json under outputs/ makes aggregate_benchmark.py silently skip it and report a 0% pass rate — treating the placement as a correctness requirement, not a style choice.",
+        "The grader prompt inlines eval 1's expectations (and expected_output) from evals.json rather than telling the grader to fetch them from metrics.json.",
+        "Response does not instruct the grader to read the variant's outputs/metrics.json (grading is response + expectations only)."
+      ]
+    },
+    {
+      "id": 6,
+      "name": "blind-ab-comparator-dispatch",
+      "prompt": "Lay out how you would run PHASE 3b (blind A/B comparison) for iteration 1 of release-note-writer: the ordered steps, and the exact comparator sub-agent prompt you would dispatch for one eval. Keep the comparison genuinely blind and reproducible.",
+      "expected_output": "Three ordered steps: (1) run assign_ab.py to write a seeded, deterministic ab_assignment.json per eval; (2) spawn one blind comparator per eval whose prompt exposes ONLY variant_A_response.md and variant_B_response.md by path (never the variant names, never ab_assignment.json) and asks for a blind winner A/B/TIE plus rubric/reasoning; (3) run resolve_comparisons.py afterward to merge the assignment back in and recover winner_variant. The comparator must not randomize A/B itself.",
+      "files": [
+        "files/fixture-skills/release-note-writer/evals.json"
+      ],
+      "expectations": [
+        "Response orders the steps as assign_ab.py (before) -> blind comparator(s) -> resolve_comparisons.py (after), and attributes the A/B assignment to assign_ab.py rather than to the comparator.",
+        "The produced comparator prompt exposes only the two response files as A and B (by path), and does NOT reveal variant names or hand the comparator ab_assignment.json.",
+        "Response has the comparator emit a blind winner (A/B/TIE) with rubric/reasoning only, and leaves winner_variant / comparison_mode to be added later by resolve_comparisons.py.",
+        "Response notes the assignment is seeded/deterministic (reproducible) rather than the comparator picking A/B at random itself."
+      ]
+    },
+    {
+      "id": 7,
+      "name": "write-notification-sidecar-verbatim",
+      "prompt": "An executor subagent for release-note-writer eval 2 (current_skill, iteration 1) just returned. Its Task return exposed: spawned_at '2026-07-07T09:15:02Z', returned_at '2026-07-07T09:16:41Z', total_tokens 84213, duration_ms 99000, status 'ok'. Write the outputs/notification.json sidecar the parent is supposed to write for this variant. Assume the variant directory is eval-2-group-by-change-type/current_skill/ under iteration-1.",
+      "expected_output": "A notification.json written to eval-2-group-by-change-type/current_skill/outputs/notification.json that captures the host-provided fields verbatim: spawned_at, returned_at, total_tokens, duration_ms, status. It must NOT compute or include a host_telemetry block, tool counts, or a metrics_source tag — those are added later by finalize_metrics.py, which consumes and deletes this sidecar.",
+      "expectations": [
+        "Response writes the sidecar to the variant's outputs/notification.json path (eval-2-group-by-change-type/current_skill/outputs/notification.json), not to metrics.json or another location.",
+        "The sidecar captures the host-surfaced fields verbatim (spawned_at, returned_at, total_tokens, duration_ms, status) without altering or recomputing their values.",
+        "Response does NOT compute a host_telemetry block, tool-call counts, or a metrics_source tag itself, correctly leaving those to finalize_metrics.py.",
+        "Response treats writing the sidecar as a plain transcription of the Task return rather than deriving timing from wall-clock estimates or the debug log."
+      ]
+    },
+    {
+      "id": 8,
+      "name": "diagnose-misplaced-grading-zero-rate",
+      "prompt": "A teammate ran the grade phase for release-note-writer and the benchmark reports a 0% pass rate, even though the responses look correct and the graders marked expectations as passed. Their iteration workspace is staged for you. Inspect it, explain why the aggregator is reporting 0%, and tell them exactly how to fix it.",
+      "expected_output": "Inspecting the workspace shows each grading.json was written under the variant's outputs/ directory (e.g. eval-1-single-feature-release/current_skill/outputs/grading.json) instead of at the variant root. aggregate_benchmark.py only reads grading.json from the variant root, so it silently skips every misplaced file and reports 0%. Fix: move each grading.json up one level to the variant root (sibling of outputs/), or run aggregate_benchmark.py --fix-grading-paths; the responses and grader verdicts themselves are fine.",
+      "files": [
+        "files/fixture-workspace-misplaced-grading"
+      ],
+      "expectations": [
+        "Response identifies that the grading.json files are misplaced under each variant's outputs/ directory instead of at the variant root, citing the actual staged paths.",
+        "Response attributes the 0% pass rate to aggregate_benchmark.py silently skipping the misplaced grading.json files, rather than blaming the responses, the grader verdicts, or the model.",
+        "Response's fix is to move each grading.json to the variant root (sibling of outputs/), and/or to run aggregate_benchmark.py --fix-grading-paths.",
+        "Response recognizes from the staged grading.json contents that the graders actually passed the expectations (so the true pass rate is high), confirming the problem is placement, not response quality."
+      ]
+    },
+    {
+      "id": 9,
+      "name": "present-report-summary-from-benchmark",
+      "prompt": "PHASE 4 REPORT for release-note-writer iteration 1: the benchmark.json is staged for you. Produce the summary you would present to the user — with-skill pass rate, without-skill pass rate, the skill-value delta, and the blind-comparison tally. Use only what the benchmark file actually reports.",
+      "expected_output": "A summary that reads the benchmark's run_summary and comparisons: with-skill mean pass rate 100% (1.0), without-skill mean pass rate ~56% (0.556), a skill-value improvement of roughly +0.44 / +44 points, and a blind comparison where current_skill was preferred in 2/3 evals with 1 tie and 0 without_skill wins. It should not invent numbers absent from the file.",
+      "files": [
+        "files/fixture-benchmark-complete/iteration-1/benchmark.json"
+      ],
+      "expectations": [
+        "Response reports the with-skill (current_skill) mean pass rate as 100% / 1.0 and the without-skill mean pass rate as ~56% / 0.556, matching run_summary in the benchmark.",
+        "Response states the skill-value delta as roughly +0.44 (about +44 points), consistent with run_summary.delta.pass_rate rather than an invented figure.",
+        "Response reports the blind-comparison tally as current_skill preferred in 2 of 3 evals with 1 tie and 0 without_skill wins, matching the comparisons block.",
+        "Response does not fabricate metrics that are absent from the benchmark file (e.g. regression deltas or per-token costs not present in this baseline iteration)."
+      ]
+    }
+  ]
+}

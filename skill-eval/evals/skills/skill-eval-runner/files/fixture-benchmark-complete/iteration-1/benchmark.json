@@ -1,0 +1,145 @@
+{
+  "metadata": {
+    "skill_name": "release-note-writer",
+    "skill_version": "1.0.0",
+    "timestamp": "2026-07-02T14:20:00Z",
+    "iteration": 1,
+    "comparison_mode": "baseline",
+    "evals_run": [1, 2, 3]
+  },
+  "runs": [
+    {
+      "eval_id": 1,
+      "eval_name": "single-feature-release",
+      "configuration": "current_skill",
+      "result": {"pass_rate": 1.0, "passed": 3, "failed": 0, "total": 3, "time_seconds": 21.4, "tokens": 5200},
+      "expectations": [
+        {"text": "Response groups PR #812 under a Features heading.", "passed": true, "evidence": ["### Features"]}
+      ]
+    },
+    {
+      "eval_id": 1,
+      "eval_name": "single-feature-release",
+      "configuration": "without_skill",
+      "result": {"pass_rate": 0.667, "passed": 2, "failed": 1, "total": 3, "time_seconds": 12.8, "tokens": 2100},
+      "expectations": [
+        {"text": "Response groups PR #812 under a Features heading.", "passed": false, "evidence": []}
+      ]
+    },
+    {
+      "eval_id": 2,
+      "eval_name": "group-by-change-type",
+      "configuration": "current_skill",
+      "result": {"pass_rate": 1.0, "passed": 3, "failed": 0, "total": 3, "time_seconds": 33.9, "tokens": 7400},
+      "expectations": [
+        {"text": "Response places each PR under the correct group (Features/Fixes/Docs/Internal).", "passed": true, "evidence": ["### Features"]}
+      ]
+    },
+    {
+      "eval_id": 2,
+      "eval_name": "group-by-change-type",
+      "configuration": "without_skill",
+      "result": {"pass_rate": 0.0, "passed": 0, "failed": 3, "total": 3, "time_seconds": 15.1, "tokens": 2600},
+      "expectations": [
+        {"text": "Response places each PR under the correct group (Features/Fixes/Docs/Internal).", "passed": false, "evidence": []}
+      ]
+    },
+    {
+      "eval_id": 3,
+      "eval_name": "decline-when-no-merges",
+      "configuration": "current_skill",
+      "result": {"pass_rate": 1.0, "passed": 2, "failed": 0, "total": 2, "time_seconds": 9.6, "tokens": 1800},
+      "expectations": [
+        {"text": "Response states there is nothing to release / no merged changes.", "passed": true, "evidence": ["There are no merged changes since v2.0.0"]}
+      ]
+    },
+    {
+      "eval_id": 3,
+      "eval_name": "decline-when-no-merges",
+      "configuration": "without_skill",
+      "result": {"pass_rate": 1.0, "passed": 2, "failed": 0, "total": 2, "time_seconds": 8.2, "tokens": 1500},
+      "expectations": [
+        {"text": "Response states there is nothing to release / no merged changes.", "passed": true, "evidence": ["Nothing has been merged"]}
+      ]
+    }
+  ],
+  "run_summary": {
+    "current_skill": {
+      "pass_rate": {"mean": 1.0, "stddev": 0.0, "min": 1.0, "max": 1.0},
+      "time_seconds": {"mean": 21.6, "stddev": 9.9, "min": 9.6, "max": 33.9},
+      "tokens": {"mean": 4800.0, "stddev": 2320.0, "min": 1800.0, "max": 7400.0}
+    },
+    "without_skill": {
+      "pass_rate": {"mean": 0.556, "stddev": 0.416, "min": 0.0, "max": 1.0},
+      "time_seconds": {"mean": 12.0, "stddev": 2.9, "min": 8.2, "max": 15.1},
+      "tokens": {"mean": 2066.7, "stddev": 452.0, "min": 1500.0, "max": 2600.0}
+    },
+    "delta": {
+      "pass_rate": "+0.444",
+      "time_seconds": "+9.6",
+      "tokens": "+2733.3"
+    }
+  },
+  "comparisons": {
+    "current_skill_wins": 2,
+    "without_skill_wins": 0,
+    "ties": 1
+  },
+  "per_eval_comparisons": [
+    {
+      "eval_id": 1,
+      "eval_name": "single-feature-release",
+      "comparison_mode": "baseline",
+      "winner_variant": "current_skill",
+      "winner": "A",
+      "reasoning": "A uses the grouped heading structure; B is a prose sentence.",
+      "assignment": {"A": "current_skill", "B": "without_skill"},
+      "rubric_scores": {"A": 8.5, "B": 6.0},
+      "baseline_iteration": 1,
+      "previous_iteration": null,
+      "per_expectation": []
+    },
+    {
+      "eval_id": 2,
+      "eval_name": "group-by-change-type",
+      "comparison_mode": "baseline",
+      "winner_variant": "current_skill",
+      "winner": "B",
+      "reasoning": "The grouped, per-PR output is far more usable than the undifferentiated paragraph.",
+      "assignment": {"A": "without_skill", "B": "current_skill"},
+      "rubric_scores": {"A": 4.5, "B": 9.0},
+      "baseline_iteration": 1,
+      "previous_iteration": null,
+      "per_expectation": []
+    },
+    {
+      "eval_id": 3,
+      "eval_name": "decline-when-no-merges",
+      "comparison_mode": "baseline",
+      "winner_variant": null,
+      "winner": "TIE",
+      "reasoning": "Both correctly decline; outputs are equivalent.",
+      "assignment": {"A": "current_skill", "B": "without_skill"},
+      "rubric_scores": {"A": 7.0, "B": 7.0},
+      "baseline_iteration": 1,
+      "previous_iteration": null,
+      "per_expectation": []
+    }
+  ],
+  "contradictions": [],
+  "skill_regressions": {"vs_baseline": [], "vs_previous": []},
+  "notes": [
+    {
+      "category": "skill_value",
+      "text": "Eval #2 (group-by-change-type) shows the largest skill benefit: current_skill passes 3/3 vs 0/3 without.",
+      "eval_refs": [2],
+      "metrics": {"current_skill": "3/3", "without_skill": "0/3"}
+    }
+  ],
+  "skill_feedback_rollup": {
+    "totals": {"missing_from_skill": 0, "ambiguous_instructions": 0, "broken_references": 0, "outdated_or_wrong": 0},
+    "by_impact": {"blocking": 0, "major": 0, "minor": 0},
+    "top_references": [],
+    "items": []
+  }
+}

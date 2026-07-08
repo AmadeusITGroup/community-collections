@@ -1,0 +1,208 @@
+/* Progression tab — Heatmap, Resource Usage, Skill Feedback Trend,
+   Health Signals, and Trend chart accents. */
+
+/* ── Heatmap ───────────────────────────────────────────────── */
+.heatmap-wrap{
+  position:relative;
+  max-height:560px;overflow:auto;
+}
+.heatmap-table thead th{
+  position:sticky;top:0;z-index:2;
+  background:var(--accent-bg);
+  box-shadow:0 1px 0 var(--border);
+}
+.heatmap-table td{cursor:default}
+.heatmap-table td.hm-clickable{
+  cursor:pointer;
+  transition:filter var(--tr);
+}
+.heatmap-table td.hm-clickable:hover{filter:brightness(0.95)}
+.hm-delta-cell{
+  text-align:center;
+  font-size:0.9rem;font-weight:700;
+  color:var(--text-light);
+}
+.hm-delta-cell.up  {color:var(--green)}
+.hm-delta-cell.down{color:var(--red)}
+.hm-delta-cell.flat{color:var(--text-light)}
+
+.heatmap-legend{
+  display:flex;align-items:center;gap:14px;
+  font-size:0.72rem;color:var(--text-muted);
+}
+.heatmap-legend .swatch{
+  display:inline-block;
+  width:10px;height:10px;border-radius:2px;
+  vertical-align:middle;margin-right:4px;
+}
+.heatmap-legend .swatch.red   {background:var(--red)}
+.heatmap-legend .swatch.yellow{background:var(--warn)}
+.heatmap-legend .swatch.green {background:var(--green)}
+.heatmap-legend .swatch.gray  {background:var(--text-light)}
+
+/* ── Resource Usage ────────────────────────────────────────── */
+.resource-controls{
+  display:flex;align-items:center;gap:8px;
+  margin-bottom:10px;
+}
+
+/* Model attribution badge — used in Resource Usage group headers and the
+   Health Signals table. Mixed-model iterations get an amber accent so the
+   confound is visible rather than averaged away. */
+.iter-model-badge{
+  display:inline-block;
+  margin-top:3px;
+  padding:1px 6px;
+  background:var(--accent-bg);
+  border:1px solid var(--border-light);border-radius:8px;
+  color:var(--text-muted);
+  font-size:0.62rem;font-weight:600;letter-spacing:0.3px;
+  text-transform:none;
+  white-space:nowrap;
+  font-variant-numeric:tabular-nums;
+}
+.iter-model-badge.mixed{
+  background:rgba(255, 159, 10, 0.08);
+  border-color:var(--warn);
+  color:var(--warn);
+}
+.resource-table thead tr.group-header .iter-model-badge{
+  display:block;margin:3px auto 0;width:max-content;
+}
+.resource-table{
+  width:100%;border-collapse:collapse;
+  font-size:0.85rem;font-variant-numeric:tabular-nums;
+}
+.resource-table thead th{
+  padding:8px 10px;text-align:right;
+  border-bottom:2px solid var(--border);
+  font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;
+  color:var(--text-muted);
+  white-space:nowrap;
+}
+.resource-table thead th:first-child{text-align:left}
+.resource-table thead tr.group-header th:first-child{
+  background:transparent;border-bottom:none;
+}
+.resource-table thead tr.group-header th{
+  padding:6px 10px 5px;
+  background:var(--accent-bg);
+  border-bottom:1px solid var(--border-light);
+  text-align:center;
+  font-size:0.7rem;
+  color:var(--accent);
+}
+.resource-table thead tr.group-header th[colspan="3"]{letter-spacing:0.8px}
+.resource-table td{
+  padding:8px 10px;text-align:right;
+  border-bottom:1px solid var(--border-light);
+}
+.resource-table td:first-child{
+  text-align:left;font-weight:600;color:var(--text);
+}
+.resource-table td.cell-delta .delta-chip{margin-left:auto}
+/* Visible separator between iteration groups — applied to the first cell of
+   each iter group (idx > 0). Stronger than --border-light so the eye locks
+   onto the iteration boundary instead of the column-level rules. */
+.resource-table th.group-boundary,
+.resource-table td.group-boundary{border-left:2px solid var(--border)}
+
+.resource-sparklines{
+  display:flex;flex-wrap:wrap;justify-content:center;
+  gap:28px;
+  margin:4px 0 22px;
+  padding-bottom:18px;
+  border-bottom:1px solid var(--border-light);
+}
+.resource-sparkline{
+  flex:1 1 320px;min-width:260px;max-width:420px;
+  padding:14px 18px;
+  background:var(--card-bg);
+  border:1px solid var(--border-light);border-radius:var(--radius-sm);
+}
+.resource-sparkline svg{width:100%;height:auto}
+.resource-sparkline .spark-label{
+  margin-bottom:6px;
+  font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;
+  color:var(--text-muted);
+}
+.resource-sparkline .spark-value{
+  font-size:1rem;font-weight:700;font-variant-numeric:tabular-nums;
+}
+.resource-sparkline svg{display:block;margin-top:6px}
+
+/* ── Skill Feedback Trend ──────────────────────────────────── */
+.sf-trend-subtitle{
+  margin-bottom:12px;
+  font-size:0.84rem;color:var(--text-muted);
+}
+.sf-trend-subtitle strong{color:var(--text);font-weight:700}
+.sf-trend-table{
+  width:100%;border-collapse:collapse;
+  font-size:0.85rem;font-variant-numeric:tabular-nums;
+}
+.sf-trend-table th{
+  padding:8px 10px;text-align:right;
+  border-bottom:2px solid var(--border);
+  font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;
+  color:var(--text-muted);
+}
+.sf-trend-table th:first-child{text-align:left}
+.sf-trend-table td{
+  padding:8px 10px;text-align:right;
+  border-bottom:1px solid var(--border-light);
+}
+.sf-trend-table td:first-child{text-align:left;font-weight:600}
+.sf-trend-bar-track{
+  display:inline-block;vertical-align:middle;
+  width:120px;height:8px;
+  background:var(--border-light);border-radius:4px;
+  overflow:hidden;
+}
+.sf-trend-bar-fill{
+  display:block;
+  height:100%;
+  background:var(--ai-accent);border-radius:4px;
+}
+.sf-trend-categories{
+  margin-top:10px;
+  font-size:0.78rem;line-height:1.55;color:var(--text-muted);
+}
+.sf-trend-categories strong{color:var(--text);font-weight:700}
+
+/* ── Health Signals ────────────────────────────────────────── */
+.health-signals-empty{
+  display:flex;align-items:center;justify-content:center;gap:10px;
+  padding:14px 18px;
+  font-size:0.88rem;font-weight:600;color:var(--green);
+}
+.health-signals-empty::before{
+  content:"\2713";
+  font-size:1.2rem;font-weight:700;
+}
+.health-signals-details{margin-top:12px}
+.health-signals-details > summary.signal-expand{
+  display:inline-flex;align-items:center;gap:8px;
+  padding:6px 0;
+  font-size:0.86rem;font-weight:600;color:var(--accent);
+  cursor:pointer;list-style:none;
+}
+.health-signals-details > summary.signal-expand::-webkit-details-marker{display:none}
+.health-signals-details > summary.signal-expand::before{
+  /* U+25B6 BLACK RIGHT-POINTING TRIANGLE — same glyph as .sfd-show-more for
+     a single canonical "expand more" affordance. U+25B8 renders too thin
+     against muted backgrounds. */
+  content:"\25B6";
+  font-size:0.78rem;
+  transition:transform var(--tr);
+}
+.health-signals-details[open] > summary.signal-expand::before{
+  transform:rotate(90deg);
+}
+.health-signals-details > summary.signal-expand:hover{color:var(--accent-hover)}
+
+/* ── Trend chart accents ───────────────────────────────────── */
+.trend-baseline-label-bg{
+  fill:var(--card-bg);stroke:var(--card-bg);stroke-width:4;
+  paint-order:stroke fill;
+}

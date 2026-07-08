@@ -1,0 +1,51 @@
+/* One panel per variant inside a .section-card-body grid cell.
+   3px top-accent carries the variant color; .neutral drops the accent for
+   single-panel sections (Prompt, Skill feedback, Notes). */
+
+.variant-card{
+  display:flex;flex-direction:column;
+  min-width:0;padding:12px 14px;
+  background:var(--card-bg);
+  border:1px solid var(--border);border-top:3px solid var(--var-baseline);
+  border-radius:var(--radius-sm);
+}
+.variant-card.baseline{border-top-color:var(--var-baseline)}
+.variant-card.previous{border-top-color:var(--var-previous)}
+.variant-card.current {border-top-color:var(--var-current)}
+.variant-card.wos{border-top-color:var(--var-wos)}
+.variant-card.ws {border-top-color:var(--var-ws)}
+.variant-card.neutral{
+  background:var(--card-bg);
+  border-top:1px solid var(--border);
+}
+.variant-card.warn{
+  background:var(--warn-bg);
+  border-top:3px solid var(--warn);
+}
+
+.variant-card-head{
+  display:flex;align-items:center;gap:8px;
+  min-height:22px;
+  margin-bottom:10px;padding-bottom:8px;
+  border-bottom:1px solid var(--border-light);
+}
+.variant-card.neutral .variant-card-head{
+  margin-bottom:6px;padding-bottom:2px;
+  border-bottom-color:transparent;
+}
+
+.variant-card-body{
+  flex:1;min-width:0;
+  font-size:0.82rem;line-height:1.55;color:var(--text);
+}
+.variant-card-body > :first-child{margin-top:0}
+.variant-card-body > :last-child {margin-bottom:0}
+
+.variant-card-foot{
+  display:flex;flex-wrap:wrap;gap:14px;
+  margin-top:10px;padding:8px 0 0;
+  border-top:1px dashed var(--border-light);
+  font-size:0.72rem;color:var(--text-muted);
+  font-variant-numeric:tabular-nums;
+}
+.variant-card-foot strong{color:var(--text);font-weight:700}

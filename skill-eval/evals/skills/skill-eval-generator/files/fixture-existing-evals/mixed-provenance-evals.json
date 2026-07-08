@@ -1,0 +1,38 @@
+{
+  "schema_version": "1.0.0",
+  "skill_name": "commit-message-writer",
+  "skill_version": "2.0.0",
+  "description": "Existing eval set with mixed provenance, used to test incremental merge behavior.",
+  "evals": [
+    {
+      "id": 1,
+      "name": "feat-routing-new-capability",
+      "prompt": "I added a --json output flag to the CLI. Draft a commit message.",
+      "expected_output": "A Conventional Commits message using the feat type, imperative subject under 50 chars.",
+      "expectations": [
+        "Response chooses the feat type because the change adds a new user-facing capability.",
+        "[auto] Response subject line is in imperative mood."
+      ]
+    },
+    {
+      "id": 2,
+      "name": "breaking-change-footer",
+      "prompt": "[auto] The format() function now returns an object instead of a string. Write the commit.",
+      "expected_output": "A commit that marks the breaking change with a ! on the type and a BREAKING CHANGE footer.",
+      "expectations": [
+        "[auto] Response marks the type with an exclamation mark.",
+        "[auto] Response includes a BREAKING CHANGE footer."
+      ]
+    },
+    {
+      "id": 7,
+      "name": "manual-multi-scope-monorepo",
+      "prompt": "I touched packages/api and packages/web in one staged change set. How should I scope the commit?",
+      "expected_output": "Human-authored eval: the skill should recommend splitting into separate commits or using a broad scope, and must not invent a single misleading scope.",
+      "expectations": [
+        "Response recommends either splitting the change into separate commits or using a neutral scope rather than fabricating one scope that hides the second package.",
+        "Response explains the reasoning in terms of commit atomicity."
+      ]
+    }
+  ]
+}

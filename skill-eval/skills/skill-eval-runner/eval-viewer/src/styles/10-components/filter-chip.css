@@ -1,0 +1,44 @@
+/* Sort/filter pills used in the Per-Eval Scorecard, Skill Feedback drill-down,
+   and Resource Usage view-toggle. */
+
+.filter-chip-row{
+  display:flex;flex-wrap:wrap;align-items:center;gap:6px;
+  margin-bottom:10px;
+}
+.filter-chip{
+  display:inline-flex;align-items:center;gap:5px;
+  padding:4px 10px;border-radius:14px;
+  background:var(--card-bg);
+  border:1px solid var(--border);
+  color:var(--text-muted);font-family:inherit;
+  font-size:0.72rem;font-weight:600;letter-spacing:0.3px;text-transform:uppercase;
+  font-variant-numeric:tabular-nums;
+  cursor:pointer;
+  transition:background var(--tr),color var(--tr),border-color var(--tr);
+}
+.filter-chip:hover{border-color:var(--accent);color:var(--accent)}
+.filter-chip.active{
+  background:var(--accent-light);
+  border-color:var(--accent);
+  color:var(--accent);
+}
+.filter-chip .count{
+  opacity:0.8;font-weight:700;font-variant-numeric:tabular-nums;
+}
+.filter-chip.impact-blocking.active{background:var(--red-bg);    border-color:var(--red);    color:var(--red)}
+.filter-chip.impact-major.active   {background:var(--warn-bg);   border-color:var(--warn);   color:var(--warn)}
+.filter-chip.impact-minor.active   {background:var(--border-light);border-color:var(--text-muted);color:var(--text-muted)}
+
+.sort-select{
+  padding:4px 10px;border-radius:var(--radius-sm);
+  background:var(--card-bg);
+  border:1px solid var(--border);
+  color:var(--text);font-family:inherit;font-size:0.78rem;
+  cursor:pointer;
+}
+.sort-select:hover{border-color:var(--accent)}
+.sort-label{
+  margin-right:4px;
+  font-size:0.72rem;font-weight:600;letter-spacing:0.5px;text-transform:uppercase;
+  color:var(--text-muted);
+}

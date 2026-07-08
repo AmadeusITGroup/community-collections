@@ -1,0 +1,73 @@
+/* Row-per-expectation grid used in the Review-tab Expectations section.
+   One row = one expectation text + a horizontal strip of variant cells
+   underneath. The expectation text is written once per row; cells carry
+   only the per-variant pass/fail glyph + evidence quote. */
+
+.expect-rows{
+  display:flex;flex-direction:column;gap:12px;
+  margin-top:12px;
+}
+.expect-row{
+  padding:10px 12px;
+  background:var(--bg);
+  border:1px solid var(--border-light);border-radius:var(--radius-sm);
+}
+.expect-row-head{
+  display:flex;align-items:flex-start;gap:10px;
+  margin-bottom:10px;
+  font-size:0.86rem;line-height:1.45;color:var(--text);
+}
+.expect-row-head .expect-num{
+  flex-shrink:0;min-width:26px;
+  font-weight:700;color:var(--text-muted);
+  font-variant-numeric:tabular-nums;
+}
+.expect-row-head .expect-text{
+  flex:1;min-width:0;
+  font-weight:600;overflow-wrap:anywhere;
+}
+.expect-row-variants{
+  display:grid;
+  grid-template-columns:repeat(var(--er-cols,2),minmax(0,1fr));
+  gap:10px;
+}
+.expect-cell{
+  display:flex;flex-direction:column;gap:6px;
+  min-width:0;padding:8px 10px;
+  background:var(--card-bg);
+  border:1px solid var(--border);border-top:3px solid var(--var-baseline);
+  border-radius:var(--radius-sm);
+}
+.expect-cell.baseline{border-top-color:var(--var-baseline)}
+.expect-cell.previous{border-top-color:var(--var-previous)}
+.expect-cell.current {border-top-color:var(--var-current)}
+.expect-cell-head{
+  display:flex;align-items:center;gap:8px;
+}
+.expect-cell-head .expect-status{
+  margin-left:auto;
+  font-size:0.9rem;font-weight:700;line-height:1;
+}
+.expect-cell-head .expect-status.pass{color:var(--green)}
+.expect-cell-head .expect-status.fail{color:var(--red)}
+.expect-cell-head .expect-status.na  {color:var(--text-light)}
+.expect-cell .expect-evidence{
+  margin:0;padding:4px 10px;
+  background:var(--bg);
+  border-left:3px solid var(--border);
+  border-radius:0 var(--radius-sm) var(--radius-sm) 0;
+  font-size:0.78rem;line-height:1.5;color:var(--text);
+  white-space:pre-wrap;word-break:break-word;overflow-wrap:anywhere;
+}
+.expect-cell .expect-evidence + .expect-evidence{
+  margin-top:4px;
+}
+.expect-cell .expect-evidence.na{
+  background:transparent;
+  border-left-color:var(--border-light);
+  color:var(--text-light);font-style:italic;
+}
+
+@media(max-width:900px){
+  .expect-row-variants{grid-template-columns:minmax(0,1fr)}
+}

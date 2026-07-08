@@ -1,0 +1,9 @@
+/* Inline run metrics strip — emoji + value chips used in Review variant-card
+   footers and Benchmark per-eval expandables. */
+
+.metrics-inline{
+  display:inline-flex;flex-wrap:wrap;align-items:center;gap:14px;
+  font-size:0.74rem;color:var(--text-muted);
+  font-variant-numeric:tabular-nums;
+}
+.metrics-inline strong{color:var(--text);font-weight:700}

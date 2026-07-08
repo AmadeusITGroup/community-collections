@@ -1,0 +1,42 @@
+/* Small "this is the Baseline / Previous / Current" marker.
+   Used by section-card-head, variant-card-head, and any drill-down that
+   needs to label a number with a variant. */
+
+.variant-pill{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:3px 10px;border-radius:10px;
+  font-size:0.7rem;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;
+  line-height:1.2;
+}
+.variant-pill::before{
+  content:"";flex-shrink:0;
+  width:6px;height:6px;border-radius:50%;
+  background:currentColor;opacity:0.9;
+}
+.variant-pill.baseline{background:var(--var-baseline-bg);color:var(--var-baseline)}
+.variant-pill.previous{background:var(--var-previous-bg);color:var(--var-previous)}
+.variant-pill.current {background:var(--var-current-bg); color:var(--var-current)}
+.variant-pill.wos{background:var(--var-wos-bg);color:var(--var-wos)}
+.variant-pill.ws {background:var(--var-ws-bg); color:var(--var-ws)}
+.variant-pill.neutral{background:var(--border-light);color:var(--text-muted)}
+.variant-pill .pct{margin-left:4px;font-weight:800}
+
+/* Version chip rendered inside a variant pill, e.g. "CURRENT v1.3.0".
+   Lighter weight + lower-case so the version reads as data, not a label. */
+.variant-pill .variant-pill-version{
+  font-weight:600;
+  text-transform:none;
+  letter-spacing:0;
+  opacity:0.85;
+}
+
+/* Pills inside a .sec-heading sit on the page background; add a 1px colored
+   border so they read as tags. Inside cards the tinted bg already pops. */
+.sec-heading .variant-pill,
+.section-card-head .variant-pill{
+  border:1px solid currentColor;
+}
+.sec-heading .variant-pill.neutral,
+.section-card-head .variant-pill.neutral{
+  border-color:var(--border);
+}

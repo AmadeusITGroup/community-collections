@@ -1,0 +1,43 @@
+/* Output preview block — renders inside Review variant cards. Holds either a
+   single output or a tab bar when a run produced multiple files. */
+
+.output-preview{
+  max-height:220px;padding:10px 12px;
+  background:var(--bg);
+  border:1px solid var(--border-light);border-radius:var(--radius-sm);
+  font-size:0.8rem;line-height:1.55;color:var(--text);
+  overflow:auto;
+}
+.output-preview img{
+  max-width:100%;margin:6px 0;
+  border-radius:var(--radius-sm);
+}
+.output-preview pre{
+  margin:6px 0;padding:10px;
+  background:var(--code-bg);color:var(--code-text);
+  border-radius:var(--radius-sm);
+  font-size:0.78rem;overflow-x:auto;
+}
+.output-preview code{
+  padding:1px 5px;border-radius:3px;
+  background:var(--code-bg);color:var(--code-text);
+  font-size:0.78rem;
+}
+
+.output-preview .out-tab-bar{
+  position:sticky;top:-10px;z-index:1;
+  display:flex;gap:4px;
+  margin:-10px -12px 8px;padding:6px 10px;
+  background:var(--card-bg);
+  border-bottom:1px solid var(--border-light);
+}
+.output-preview .out-tab{
+  padding:3px 10px;
+  border:none;background:none;
+  color:var(--text-muted);font-family:inherit;
+  font-size:0.72rem;font-weight:500;
+  cursor:pointer;border-radius:var(--radius-sm);
+}
+.output-preview .out-tab.active{
+  background:var(--accent-light);color:var(--accent);font-weight:600;
+}

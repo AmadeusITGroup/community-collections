@@ -1,0 +1,31 @@
+{
+  "expectations": [
+    {
+      "text": "Response places each PR under the correct group (Features/Fixes/Docs/Internal).",
+      "passed": true,
+      "evidence": ["### Features\n\n- Add CSV export to reports (#901)", "### Fixes\n\n- Fix crash when filter is empty (#898)"]
+    },
+    {
+      "text": "Response includes one bullet per merged PR in the file.",
+      "passed": true,
+      "evidence": ["#901", "#898", "#895", "#890", "#888"]
+    },
+    {
+      "text": "Response lists PRs newest-first within each group.",
+      "passed": true,
+      "evidence": ["- Add CSV export to reports (#901)\n- Add per-column sort to tables (#888)"]
+    }
+  ],
+  "summary": {
+    "passed": 3,
+    "failed": 0,
+    "total": 3,
+    "pass_rate": 1.0
+  },
+  "claims": [],
+  "eval_feedback": {
+    "suggestions": [],
+    "missing": [],
+    "overall": "Every merged PR is grouped correctly and ordered newest-first; all expectations pass."
+  }
+}

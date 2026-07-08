@@ -1,0 +1,15 @@
+{
+  "id": 1,
+  "name": "single-feature-release",
+  "prompt": "Write the release notes for v1.4.0. The only merged PR is #812 'Add dark-mode toggle to settings' (labeled feature).",
+  "expectations": [
+    "Response groups PR #812 under a Features heading.",
+    "Response references the PR number #812.",
+    "Response omits empty groups (no empty Fixes/Docs/Internal sections)."
+  ],
+  "files": [],
+  "sandbox_dir": "current_skill/sandbox",
+  "iteration": 1,
+  "prepared_at": "2026-07-01T09:00:00Z",
+  "eval_mode": "baseline"
+}

@@ -1,0 +1,31 @@
+{
+  "expectations": [
+    {
+      "text": "Response groups PR #812 under a Features heading.",
+      "passed": false,
+      "evidence": []
+    },
+    {
+      "text": "Response references the PR number #812.",
+      "passed": true,
+      "evidence": ["adds a dark-mode toggle to the settings screen (PR 812)"]
+    },
+    {
+      "text": "Response omits empty groups (no empty Fixes/Docs/Internal sections).",
+      "passed": true,
+      "evidence": ["No other changes shipped in this release."]
+    }
+  ],
+  "summary": {
+    "passed": 2,
+    "failed": 1,
+    "total": 3,
+    "pass_rate": 0.667
+  },
+  "claims": [],
+  "eval_feedback": {
+    "suggestions": [],
+    "missing": [],
+    "overall": "Prose paragraph conveys the change but does not use the grouped-by-type heading structure the skill specifies."
+  }
+}

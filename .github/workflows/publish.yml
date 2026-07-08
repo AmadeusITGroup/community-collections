@@ -30,6 +30,10 @@ jobs:
         if: steps.setup.outputs.validation-status == 'failure'
         run: exit 1
 
+      - name: Fail if unit tests failed
+        if: steps.setup.outputs.test-status == 'failure'
+        run: exit 1
+
       - name: Publish affected collections
         # NOTE: github.event.before may be all zeros (0000000...) on the first push to a
         # branch or after a force-push. The publish script handles this by falling back
@@ -74,6 +78,10 @@ jobs:
 
       - name: Fail if validation failed
         if: steps.setup.outputs.validation-status == 'failure'
+        run: exit 1
+
+      - name: Fail if unit tests failed
+        if: steps.setup.outputs.test-status == 'failure'
         run: exit 1
 
       - name: Preview affected collections (dry-run)
