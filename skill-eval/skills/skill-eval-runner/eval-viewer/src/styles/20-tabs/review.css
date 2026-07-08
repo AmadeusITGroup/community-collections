@@ -1,0 +1,132 @@
+/* Review-tab — per-eval body wraps in a stack of .section-card sections.
+   This file carries only spacing + section-specific bits that don't belong
+   on the shared .section-card / .variant-card components. */
+
+/* Prompt chat bubble — sits inside a plain .card (no variant chrome). */
+.card.prompt-card{padding:14px 16px}
+.prompt-chat{
+  display:flex;align-items:flex-start;gap:12px;
+}
+.prompt-chat-avatar{
+  flex-shrink:0;
+  width:32px;height:32px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  background:var(--accent-light);color:var(--accent);
+  font-size:1rem;line-height:1;
+}
+.prompt-chat-bubble{
+  position:relative;flex:1;min-width:0;
+  padding:10px 14px;
+  background:var(--accent-bg);
+  border:1px solid var(--accent-light);border-radius:var(--radius);
+}
+.prompt-chat-bubble::before{
+  content:"";
+  position:absolute;top:10px;left:-7px;
+  width:0;height:0;
+  border-top:6px solid transparent;
+  border-bottom:6px solid transparent;
+  border-right:7px solid var(--accent-light);
+}
+.prompt-chat-bubble::after{
+  content:"";
+  position:absolute;top:11px;left:-6px;
+  width:0;height:0;
+  border-top:5px solid transparent;
+  border-bottom:5px solid transparent;
+  border-right:6px solid var(--accent-bg);
+}
+.prompt-chat-label{
+  margin-bottom:4px;
+  font-size:0.68rem;font-weight:700;letter-spacing:0.6px;text-transform:uppercase;
+  color:var(--text-muted);
+}
+.prompt-chat-text{
+  font-size:0.88rem;line-height:1.55;color:var(--text);
+  white-space:pre-wrap;word-break:break-word;
+}
+
+/* Output preview inside its variant-card. */
+.variant-card .output-preview{
+  display:flex;flex-direction:column;gap:8px;
+  min-width:0;
+}
+.variant-card .out-content{min-width:0}
+.variant-card .out-content img{max-width:100%;border-radius:var(--radius-sm)}
+
+/* Strengths & weaknesses list — 2-col grid (icon + text). */
+.variant-card .sw-list{
+  display:flex;flex-direction:column;gap:4px;
+  list-style:none;padding:0;margin:0;
+}
+.variant-card .sw-list li{
+  display:grid;grid-template-columns:18px minmax(0,1fr);column-gap:6px;
+  padding:2px 0;
+  font-size:0.8rem;line-height:1.5;color:var(--text);
+}
+.variant-card .sw-list li .sw-icon{
+  text-align:center;font-weight:700;line-height:1.5;
+}
+.variant-card .sw-list li.strength .sw-icon{color:var(--green)}
+.variant-card .sw-list li.weakness .sw-icon{color:var(--red)}
+
+/* Per-eval Skill Feedback uses the same .sfd-item visual as Benchmark.
+   Sub-groups (Skill issues / Risks / Missing inputs) get a small label. */
+.review-skill-feedback-card .rsf-group{margin-bottom:14px}
+.review-skill-feedback-card .rsf-group:last-child{margin-bottom:0}
+.review-skill-feedback-card .rsf-group-head{
+  margin-bottom:8px;padding-bottom:6px;
+  border-bottom:1px solid var(--border-light);
+  font-size:0.74rem;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;
+  color:var(--text-muted);
+}
+
+/* Notes — textarea + status row + submit button inside a .card. */
+.card.notes-card textarea{
+  width:100%;min-height:90px;
+  padding:10px 12px;
+  background:var(--bg);
+  border:1px solid var(--border-light);border-radius:var(--radius-sm);
+  color:var(--text);font-family:inherit;
+  font-size:0.86rem;line-height:1.5;
+  resize:vertical;
+}
+.card.notes-card textarea:focus{
+  outline:none;
+  border-color:var(--accent);
+  box-shadow:0 0 0 2px var(--accent-light);
+}
+.card.notes-card .notes-subtitle{
+  margin-bottom:10px;
+  font-size:0.92rem;font-weight:600;color:var(--text);
+}
+.card.notes-card .feedback-status{
+  min-height:14px;
+  font-size:0.72rem;color:var(--text-muted);
+}
+.card.notes-card .notes-submit-row{
+  display:flex;justify-content:flex-end;
+  margin-top:10px;
+}
+
+/* A/B comparison verdict — comparator-generated synthesis, styled as a tinted
+   callout so the reader sees it as "this is the AI's reasoning", not body
+   prose. */
+.review-ab-comparison-verdict{
+  position:relative;
+  margin:0 0 16px;padding:12px 14px 12px 16px;
+  background:var(--accent-bg);
+  border:1px solid var(--accent-light);border-left:3px solid var(--accent);
+  border-radius:var(--radius-sm);
+  font-size:0.88rem;line-height:1.6;color:var(--text);
+}
+.review-ab-comparison-verdict::before{
+  content:"Verdict";display:block;
+  margin-bottom:6px;
+  font-size:0.68rem;font-weight:700;letter-spacing:0.6px;text-transform:uppercase;
+  color:var(--accent);
+}
+.review-ab-comparison-verdict .variant-tag{
+  padding:0 4px;border-radius:4px;
+  font-weight:700;
+}

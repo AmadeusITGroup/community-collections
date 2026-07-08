@@ -1,0 +1,109 @@
+/* Dumbbell chart — three stacked panels (Content / Structure / Overall),
+   each with one row per dimension. Each row carries 2-3 dots
+   (baseline / wos / ws) plus a connecting bar between them. */
+
+.db-group{display:flex;flex-direction:column;gap:10px}
+.db-section{
+  padding:14px 16px 10px;
+  background:transparent;
+  border:1px solid var(--border);border-radius:8px;
+}
+.db-section.overall{padding:10px 16px}
+.db-section-label{
+  margin-bottom:8px;
+  font-size:0.68rem;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;
+  color:var(--text-muted);
+}
+
+.dumbbell-row{
+  display:grid;grid-template-columns:110px 1fr 46px;
+  align-items:center;gap:10px;
+  padding:4px 10px;
+  margin-bottom:4px;
+}
+.dumbbell-row:last-child{margin-bottom:0}
+.dumbbell-row .label-wrap{
+  text-align:right;line-height:1.35;
+  overflow:hidden;
+}
+.dumbbell-row .label{
+  font-size:0.78rem;font-weight:500;color:var(--text);
+}
+
+.dumbbell-track{
+  position:relative;height:10px;
+  display:flex;align-items:center;
+}
+.dumbbell-scale{
+  position:absolute;top:50%;left:0;right:0;
+  height:1px;
+  background:var(--border);
+  transform:translateY(-50%);
+}
+.dumbbell-bar{
+  position:absolute;top:50%;z-index:1;
+  height:6px;border-radius:3px;
+  transform:translateY(-50%);
+}
+.dumbbell-bar.baseline-bar{opacity:0.55}
+
+.dumbbell-dot{
+  position:absolute;top:50%;z-index:2;
+  width:11px;height:11px;border-radius:50%;
+  border:2px solid var(--card-bg);
+  cursor:help;
+  transform:translate(-50%,-50%);
+}
+.dumbbell-dot.baseline{background:var(--var-baseline)}
+.dumbbell-dot.wos{background:var(--var-wos)}
+.dumbbell-dot.ws {background:var(--var-ws)}
+
+.dumbbell-current-value{
+  text-align:left;
+  color:var(--var-ws);font-weight:700;
+  font-size:0.78rem;font-variant-numeric:tabular-nums;
+}
+
+.dumbbell-ticks{
+  position:relative;
+  display:flex;justify-content:space-between;
+  padding:4px 0 0 110px;margin-right:46px;
+  color:var(--text-light);
+  font-size:0.58rem;font-variant-numeric:tabular-nums;
+}
+.dumbbell-ticks span{transform:translateX(-50%)}
+.dumbbell-ticks span:first-child{transform:translateX(0)}
+.dumbbell-ticks span:last-child {transform:translateX(-100%)}
+
+/* Summary rows (per panel) and Overall row are visually heavier than
+   sub-dimension rows so the eye lands there first. */
+.db-section .dumbbell-row.summary{
+  margin-top:2px;padding-top:6px;
+  border-top:1px dashed var(--border);
+  font-weight:700;
+}
+.db-section .dumbbell-row.summary .label{
+  font-size:0.86rem;font-weight:700;color:var(--text);
+}
+.db-section .dumbbell-row.summary .dumbbell-track{height:14px}
+.db-section .dumbbell-row.summary .dumbbell-bar{height:8px;border-radius:4px}
+.db-section .dumbbell-row.summary .dumbbell-dot{width:14px;height:14px}
+.db-section .dumbbell-row.summary .dumbbell-current-value{font-size:0.88rem}
+
+.db-section.overall .dumbbell-row.overall-row{
+  margin-top:4px;padding-top:7px;
+  border-top:2px solid var(--border);
+  font-weight:800;
+}
+.db-section.overall .dumbbell-row.overall-row .label{font-size:0.92rem;font-weight:800}
+.db-section.overall .dumbbell-row.overall-row .dumbbell-track{height:16px}
+.db-section.overall .dumbbell-row.overall-row .dumbbell-bar{height:10px;border-radius:5px}
+.db-section.overall .dumbbell-row.overall-row .dumbbell-dot{width:15px;height:15px}
+.db-section.overall .dumbbell-row.overall-row .dumbbell-current-value{font-size:0.95rem}
+
+/* The dumbbell can live in either a Review .chart-panel or a Benchmark
+   .bench-qs-chart-wrap; both use flex parents with align-items:center
+   which collapses children to content width. Force the dumbbell root to
+   stretch so its grid rows (110px 1fr 46px) get a non-zero 1fr track. */
+.rubric-charts .chart-panel.dumbbell-panel .db-group,
+.bench-qs-chart-wrap .db-group{width:100%}

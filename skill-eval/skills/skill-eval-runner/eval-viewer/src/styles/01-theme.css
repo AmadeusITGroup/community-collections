@@ -1,0 +1,18 @@
+/* Variant slot semantics.
+   "wos" / "ws" are the two side-keyed slots used by call sites that don't
+   track the canonical variant name. They alias to baseline/current by
+   default, and to previous/current when [data-comp-mode="regression"] is
+   set on <body>. CSS classes .wos/.ws are internal — only visible labels
+   change with the comparison mode. */
+
+:root{
+  --var-wos:var(--var-baseline);
+  --var-wos-bg:var(--var-baseline-bg);
+  --var-ws:var(--var-current);
+  --var-ws-bg:var(--var-current-bg);
+}
+
+body[data-comp-mode="regression"]{
+  --var-wos:var(--var-previous);
+  --var-wos-bg:var(--var-previous-bg);
+}

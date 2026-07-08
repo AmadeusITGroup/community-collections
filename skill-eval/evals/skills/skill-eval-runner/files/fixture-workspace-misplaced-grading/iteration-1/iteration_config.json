@@ -1,0 +1,12 @@
+{
+  "iteration": 1,
+  "mode": "baseline",
+  "ab_seed": 1734029551,
+  "skill_version": "1.0.0",
+  "eval_classification": {
+    "existing": [],
+    "new": [1, 2]
+  },
+  "total_executors": 4,
+  "skipped_without_skill": 0
+}

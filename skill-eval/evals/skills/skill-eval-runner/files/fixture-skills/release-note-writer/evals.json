@@ -1,0 +1,43 @@
+{
+  "schema_version": "1.0.0",
+  "skill_name": "release-note-writer",
+  "skill_version": "1.0.0",
+  "description": "Fixture eval suite for the release-note-writer skill. Used only as staged test material for skill-eval-runner evals — three evals so the runner has concrete ids, names, and one eval that declares a files input.",
+  "evals": [
+    {
+      "id": 1,
+      "name": "single-feature-release",
+      "prompt": "Write the release notes for v1.4.0. The only merged PR is #812 'Add dark-mode toggle to settings' (labeled feature).",
+      "expected_output": "A ## v1.4.0 section with a single ### Features bullet referencing PR #812, and no empty groups.",
+      "expectations": [
+        "Response groups PR #812 under a Features heading.",
+        "Response references the PR number #812.",
+        "Response omits empty groups (no empty Fixes/Docs/Internal sections)."
+      ]
+    },
+    {
+      "id": 2,
+      "name": "group-by-change-type",
+      "prompt": "Write the release notes for v2.0.0 from the merged PRs in the attached file.",
+      "expected_output": "A ## v2.0.0 section that groups each PR under the correct change-type heading, newest first, one bullet per PR.",
+      "files": [
+        "files/merged-prs.md"
+      ],
+      "expectations": [
+        "Response places each PR under the correct group (Features/Fixes/Docs/Internal).",
+        "Response includes one bullet per merged PR in the file.",
+        "Response lists PRs newest-first within each group."
+      ]
+    },
+    {
+      "id": 3,
+      "name": "decline-when-no-merges",
+      "prompt": "Write the release notes for v2.0.1. Nothing has been merged since v2.0.0.",
+      "expected_output": "The skill should report that there are no merged changes to release rather than inventing bullets.",
+      "expectations": [
+        "Response states there is nothing to release / no merged changes.",
+        "Response does NOT fabricate feature or fix bullets."
+      ]
+    }
+  ]
+}

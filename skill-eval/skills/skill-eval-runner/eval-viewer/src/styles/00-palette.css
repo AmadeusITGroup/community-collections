@@ -1,0 +1,93 @@
+/* Light + dark color tokens. Variant tokens are the only colors that map to
+   data axes; everything else (status / surfaces / typography) lives here. */
+
+:root,
+[data-theme="light"]{
+  --bg:#f5f6f8;
+  --card-bg:#fff;
+  --text:#1a1a2e;
+  --text-muted:#6c757d;
+  --text-light:#adb5bd;
+  --border:#e2e5ea;
+  --border-light:#f0f1f3;
+
+  --accent:#4361ee;
+  --accent-hover:#3a56d4;
+  --accent-light:#eef0ff;
+  --accent-bg:#f6f7ff;
+
+  --green:#2a9d8f;
+  --green-bg:#e6f5f1;
+  --red:#e63946;
+  --red-bg:#fef2f3;
+  --warn:#f4a261;
+  --warn-bg:#fef8f0;
+
+  --code-bg:#1a1f2e;
+  --code-text:#c9d1d9;
+
+  --radius:10px;
+  --radius-sm:6px;
+  --shadow:0 1px 3px rgba(0,0,0,0.06);
+  --shadow-hover:0 4px 12px rgba(0,0,0,0.08);
+  --tr:0.25s ease;
+
+  --ai-accent:#d4920b;
+  --ai-accent-light:#fef8ec;
+  --ai-accent-bg:#fffcf5;
+
+  --chart-grid:#e2e5ea;
+  --chart-text:#6c757d;
+
+  --sidebar-w:180px;
+  --chrome-h:103px;
+
+  --var-baseline:#6c757d;
+  --var-baseline-bg:#f1f2f4;
+  --var-previous:#e28441;
+  --var-previous-bg:#fdefe1;
+  --var-current:#4361ee;
+  --var-current-bg:#eef0ff;
+}
+
+[data-theme="dark"]{
+  --bg:#0f1117;
+  --card-bg:#1a1d27;
+  --text:#e4e6eb;
+  --text-muted:#8b8fa3;
+  --text-light:#555a6e;
+  --border:#2a2d3a;
+  --border-light:#22252f;
+
+  --accent:#6b83f7;
+  --accent-hover:#8fa0fa;
+  --accent-light:#1e2240;
+  --accent-bg:#171a2e;
+
+  --green:#3dbda8;
+  --green-bg:#1a2e2a;
+  --red:#f05d6a;
+  --red-bg:#2a1215;
+  --warn:#f4a261;
+  --warn-bg:#2a2010;
+
+  --code-bg:#0a0d14;
+  --code-text:#c9d1d9;
+
+  --shadow:0 1px 3px rgba(0,0,0,0.2);
+  --shadow-hover:0 4px 12px rgba(0,0,0,0.3);
+
+  --ai-accent:#e8a92e;
+  --ai-accent-light:#2a2010;
+  --ai-accent-bg:#1f1c14;
+
+  --chart-grid:#2a2d3a;
+  --chart-text:#8b8fa3;
+
+  --var-baseline:#8b8fa3;
+  --var-baseline-bg:#22252f;
+  --var-previous:#f6b87a;
+  --var-previous-bg:#2a2010;
+  --var-current:#6b83f7;
+  --var-current-bg:#1e2240;
+}

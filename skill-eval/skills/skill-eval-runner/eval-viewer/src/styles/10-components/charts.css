@@ -1,0 +1,86 @@
+/* Shared chart chrome:
+     .chart-container       — viewport-fitting wrapper for SVGs.
+     .chart-tooltip         — fixed-position tooltip wired to [data-tip].
+     .chart-legend          — rule strip below SVG charts.
+     .rubric-charts         — Review-tab Comparison panel (Radar + Dumbbell).
+     .rubric-legend         — variant swatches below Radar/Dumbbell.
+     .loading-card          — spinner shown while runs are still fetching. */
+
+.chart-container{margin:16px auto;max-width:960px}
+.chart-container svg{width:100%;height:auto}
+
+.chart-tooltip{
+  position:fixed;z-index:2000;
+  padding:6px 10px;
+  background:var(--card-bg);
+  border:1px solid var(--border);border-radius:var(--radius-sm);
+  box-shadow:var(--shadow-hover);
+  color:var(--text);font-size:0.72rem;font-weight:600;
+  pointer-events:none;white-space:nowrap;
+  opacity:0;transition:opacity 0.12s;
+}
+
+.chart-legend{
+  display:flex;justify-content:center;gap:20px;
+  margin-top:12px;
+  font-size:0.78rem;color:var(--text-muted);
+}
+.chart-legend span{display:flex;align-items:center;gap:6px}
+.chart-legend .leg-line{
+  width:20px;height:3px;border-radius:2px;
+}
+.chart-legend .leg-solid{background:var(--accent)}
+.chart-legend .leg-dashed{
+  background:repeating-linear-gradient(
+    90deg,
+    var(--text-light) 0,var(--text-light) 5px,
+    transparent 5px,transparent 9px
+  );
+}
+
+.rubric-charts{
+  display:flex;flex-wrap:wrap;justify-content:center;
+  align-items:center;gap:32px;margin-top:10px;
+}
+.rubric-charts .chart-panel{
+  display:flex;flex-direction:column;justify-content:center;align-items:center;
+  flex:1 1 320px;max-width:560px;min-width:0;
+  padding:0;
+}
+.rubric-charts .chart-panel.dumbbell-panel{margin:0;width:100%;justify-content:flex-start}
+.rubric-charts .chart-panel > svg{width:100%;height:auto;min-height:320px;max-height:380px}
+.chart-title{
+  margin-bottom:8px;text-align:center;
+  font-size:0.65rem;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;
+  color:var(--text-light);
+}
+
+.rubric-legend{
+  display:flex;justify-content:center;gap:18px;
+  margin-top:16px;
+  font-size:0.72rem;color:var(--text-muted);
+}
+.rubric-legend span{display:flex;align-items:center;gap:6px}
+.rubric-legend .dot{
+  width:10px;height:10px;border-radius:50%;
+}
+.rubric-legend .dot.baseline{background:var(--var-baseline)}
+.rubric-legend .dot.wos{background:var(--var-wos)}
+.rubric-legend .dot.ws {background:var(--var-ws)}
+
+.loading-card{
+  display:flex;flex-direction:column;align-items:center;gap:12px;
+  padding:48px 24px;text-align:center;
+  color:var(--text-muted);
+}
+.loading-card .spinner{
+  width:28px;height:28px;border-radius:50%;
+  border:3px solid var(--border-light);
+  border-top-color:var(--accent);
+  animation:spin 0.8s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+@media(max-width:768px){
+  .rubric-charts{gap:20px}
+}

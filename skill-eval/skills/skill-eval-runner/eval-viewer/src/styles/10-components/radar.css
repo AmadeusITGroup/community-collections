@@ -1,0 +1,51 @@
+/* Radar (hexagon) chart — Content axes in the upper half, Structure axes in
+   the lower half, divider line through y=0. Three overlay polygons:
+   baseline (regression mode only), wos, ws. */
+
+.radar-wrap{display:flex;justify-content:center;width:100%}
+.radar-wrap svg{
+  width:100%;max-width:480px;height:auto;
+  overflow:visible;
+}
+
+.radar-label{
+  font-size:10.5px;font-weight:600;fill:var(--text);
+}
+.radar-label.content-grp,
+.radar-label.structure-grp{fill:var(--text)}
+.radar-grouplabel{
+  font-size:9.5px;font-weight:700;letter-spacing:1px;
+  fill:var(--text-muted);text-transform:uppercase;
+}
+
+.radar-grid{
+  fill:none;stroke:var(--chart-grid);
+  stroke-width:0.6;stroke-dasharray:2,3;
+}
+.radar-divider{
+  stroke:var(--border);stroke-width:1;stroke-dasharray:6,4;
+}
+.radar-spoke{
+  stroke:var(--chart-grid);stroke-width:0.5;
+}
+
+.radar-area-baseline{
+  fill:var(--var-baseline);fill-opacity:0.12;
+  stroke:var(--var-baseline);stroke-width:1.5;stroke-dasharray:3,3;
+  stroke-linejoin:round;
+}
+.radar-area-wos{
+  fill:var(--var-wos);fill-opacity:0.2;
+  stroke:var(--var-wos);stroke-width:2;stroke-linejoin:round;
+}
+.radar-area-ws{
+  fill:var(--var-ws);fill-opacity:0.14;
+  stroke:var(--var-ws);stroke-width:2;stroke-linejoin:round;
+}
+
+.radar-dot-baseline{fill:var(--var-baseline);cursor:help;transition:r 0.15s}
+.radar-dot-baseline:hover{r:5}
+.radar-dot-wos{fill:var(--var-wos);cursor:help;transition:r 0.15s}
+.radar-dot-wos:hover{r:5}
+.radar-dot-ws{fill:var(--var-ws);cursor:help;transition:r 0.15s}
+.radar-dot-ws:hover{r:6}

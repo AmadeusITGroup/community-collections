@@ -1,0 +1,93 @@
+/* Canonical section heading used across all three tabs.
+   .section-card / .section-card-head are the boxed grammar; .sec-heading is
+   the unboxed grammar. Both render identically thanks to the shared rule
+   block below. */
+
+.section-card{
+  display:block;margin:32px 0 0;padding:0;
+  background:transparent;border:none;box-shadow:none;
+}
+.section-card-head,
+.sec-heading{
+  display:flex;flex-wrap:wrap;align-items:center;gap:10px;
+  margin:32px 0 16px;padding-bottom:10px;
+  border-bottom:1px solid var(--border-light);
+  font-size:1rem;font-weight:700;color:var(--text);
+  letter-spacing:0;text-transform:none;
+  /* Hash navigation + scroll-spy land here, so we clear the top chrome
+     (--chrome-h ≈ 103px). The Review tab adds its own sticky header bar
+     (~56px) — keep a generous buffer there. */
+  scroll-margin-top:calc(var(--chrome-h, 103px) + 16px);
+}
+body[data-page="review"] .sec-heading,
+body[data-page="review"] .section-card-head{
+  scroll-margin-top:calc(var(--chrome-h, 103px) + 72px);
+}
+.section-card-head:first-child,
+.sec-heading:first-child{margin-top:0}
+.section-card-head h2,
+.sec-heading h2{
+  margin:0;
+  font-size:1.15rem;font-weight:700;color:var(--text);
+}
+
+/* Variant-pill row attaches to the right edge of the head. */
+.section-card-head .variant-pill-row,
+.sec-heading .variant-pill-row{
+  margin-left:auto;
+  display:flex;flex-wrap:wrap;gap:8px;
+}
+
+/* Subtitle annotation in the head ("18 items · grader vs comparator …"). */
+.sec-heading .sec-heading-sub,
+.section-card-head .sec-heading-sub{
+  font-size:0.78rem;font-weight:500;
+  color:var(--text-light);text-transform:none;letter-spacing:0;
+}
+
+/* Section icon — monochrome muted by default, accent when the section is
+   the active TOC target. */
+.sec-icon,
+.section-icon{
+  display:inline-block;width:18px;text-align:center;
+  font-size:1rem;font-weight:400;letter-spacing:0;
+  color:var(--text-muted);opacity:0.85;
+}
+.sidebar-nav li.active .nav-icon,
+.sec-heading.active .sec-icon,
+.sec-heading.active .section-icon,
+.section-card-head.active .section-icon,
+.section-card-head.active .sec-icon{
+  color:var(--accent);opacity:1;
+}
+
+/* Optional meta strip rendered under the head (flips, hotspot count). */
+.section-card-flips{
+  display:flex;flex-wrap:wrap;align-items:center;gap:10px;
+  margin:-8px 0 12px;
+  font-size:0.78rem;line-height:1.6;color:var(--text-muted);
+}
+.section-card-flips .sc-flips-prefix{
+  margin-right:6px;
+  font-weight:700;color:var(--text);
+}
+.section-card-flips .sc-flips-tail{
+  font-size:0.74rem;color:var(--text-light);
+}
+
+/* Body — flat container. Variant cards inside grid via --sc-cols
+   (default 2; Review-tab regression mode sets 3). */
+.section-card-body{
+  display:grid;
+  grid-template-columns:repeat(var(--sc-cols,2),minmax(0,1fr));
+  gap:12px;
+}
+.section-card-body.single{grid-template-columns:minmax(0,1fr)}
+.section-card-foot{
+  margin-top:10px;
+  font-size:0.76rem;color:var(--text-muted);
+}
+
+/* Cards aren't clickable — drop the hover lift so they don't mis-signal as
+   interactive. Variant-card / metric-card already had no hover and now match. */
+.card:hover{box-shadow:var(--shadow)}

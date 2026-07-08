@@ -1,0 +1,49 @@
+/* Generic card surface + the metric-card grid used by Progression Overview. */
+
+.card{
+  margin-bottom:20px;padding:24px;
+  background:var(--card-bg);
+  border:1px solid var(--border);border-radius:var(--radius);
+  box-shadow:var(--shadow);
+  transition:box-shadow var(--tr);
+}
+.card-grid{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
+  gap:16px;margin-bottom:20px;
+}
+
+.metric-card{
+  padding:20px;text-align:center;
+  background:var(--card-bg);
+  border:1px solid var(--border);border-radius:var(--radius);
+  box-shadow:var(--shadow);
+}
+.metric-card .metric-label{
+  margin-bottom:6px;
+  font-size:0.75rem;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;
+  color:var(--text-muted);
+}
+.metric-card .metric-value{font-size:1.8rem;font-weight:700;color:var(--text)}
+.metric-card .metric-value.green {color:var(--green)}
+.metric-card .metric-value.red   {color:var(--red)}
+.metric-card .metric-value.accent{color:var(--accent)}
+.metric-card .metric-sub{margin-top:4px;font-size:0.78rem;color:var(--text-muted)}
+
+/* Mode badge — sits in the right side of an Overview .sec-heading. */
+.mode-badge{
+  margin-left:auto;
+  padding:3px 10px;border-radius:10px;
+  font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;
+}
+.mode-badge.baseline{
+  color:var(--var-baseline);background:var(--var-baseline-bg);
+  border:1px solid var(--border);
+}
+.mode-badge.regression{
+  color:var(--var-previous);background:var(--var-previous-bg);
+  border:1px solid var(--var-previous);
+}
+
+@media(max-width:768px){
+  .card-grid{grid-template-columns:1fr 1fr}
+}

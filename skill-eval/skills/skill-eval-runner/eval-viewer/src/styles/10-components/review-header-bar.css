@@ -1,0 +1,119 @@
+/* Sticky strip at the top of the Review main column carrying:
+     ‹  Eval N / M:  <name>  [▾]  ›
+   Picker dropdown anchored under the [▾] button via JS positioning. */
+
+/* Edge-to-edge inside .main-content: width matches the parent's padding-box,
+   so it reaches the column edges regardless of horizontal padding (which is
+   asymmetric on wide screens — 36px left / 56px right). */
+.review-header-bar{
+  position:sticky;top:var(--chrome-h, 0);z-index:5;
+  display:flex;align-items:center;justify-content:center;gap:10px;
+  margin:0 calc(-1 * var(--main-pad-r, 36px)) 16px calc(-1 * var(--main-pad-l, 36px));
+  padding:10px var(--main-pad-r, 36px) 10px var(--main-pad-l, 36px);
+  background:var(--card-bg);
+  border-bottom:1px solid var(--border);
+  box-shadow:0 4px 12px -6px rgba(0,0,0,0.10);
+}
+
+.review-prev,
+.review-next{
+  width:36px;height:36px;
+  display:inline-flex;align-items:center;justify-content:center;
+  background:var(--card-bg);
+  border:1px solid var(--border);border-radius:var(--radius-sm);
+  color:var(--text);
+  font-size:1.4rem;font-weight:700;line-height:1;
+  cursor:pointer;
+  transition:color var(--tr),border-color var(--tr),background var(--tr);
+}
+.review-prev:disabled,
+.review-next:disabled{
+  opacity:0.35;cursor:default;color:var(--text-light);
+}
+.review-prev:hover:not(:disabled),
+.review-next:hover:not(:disabled){
+  background:var(--accent);border-color:var(--accent);color:#fff;
+}
+
+.review-pos{font-size:0.88rem;color:var(--text-muted);white-space:nowrap}
+.review-pos strong{color:var(--text);font-weight:700}
+
+.review-picker{
+  display:inline-flex;align-items:center;gap:8px;
+  height:36px;max-width:420px;padding:6px 12px;
+  background:var(--card-bg);
+  border:1px solid var(--border);border-radius:var(--radius-sm);
+  color:var(--text);font-family:inherit;
+  font-size:0.92rem;font-weight:600;
+  cursor:pointer;
+  transition:color var(--tr),border-color var(--tr),background var(--tr);
+}
+.review-picker:hover,
+.review-picker[aria-expanded="true"]{
+  background:var(--accent-bg);border-color:var(--accent);color:var(--accent);
+}
+.review-picker-name{
+  min-width:0;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.review-picker-caret{
+  flex-shrink:0;
+  font-size:0.78rem;font-weight:700;
+  color:var(--text-muted);
+}
+.review-picker:hover .review-picker-caret,
+.review-picker[aria-expanded="true"] .review-picker-caret{color:var(--accent)}
+
+.review-submit-btn{
+  padding:6px 14px;border-radius:var(--radius-sm);
+  background:var(--accent);color:#fff;
+  border:1px solid var(--accent);
+  font-family:inherit;font-size:0.82rem;font-weight:600;
+  cursor:pointer;
+  transition:filter var(--tr);
+}
+.review-submit-btn:hover {filter:brightness(0.94)}
+.review-submit-btn:active{filter:brightness(0.88)}
+
+/* Picker dropdown panel — anchored to the bar by JS. */
+.review-picker-panel{
+  position:absolute;z-index:10;
+  width:min(560px, calc(100vw - 64px));
+  max-height:60vh;padding:6px 0;
+  background:var(--card-bg);
+  border:1px solid var(--border);border-radius:var(--radius);
+  box-shadow:0 8px 28px rgba(0,0,0,0.10);
+  font-size:0.86rem;
+  overflow:auto;
+}
+.review-picker-panel[hidden]{display:none}
+.review-picker-panel ul{list-style:none;padding:0;margin:0}
+.review-picker-panel li{
+  display:grid;grid-template-columns:14px 36px 1fr auto;
+  align-items:center;gap:8px;
+  padding:6px 14px;
+  color:var(--text);cursor:pointer;
+}
+.review-picker-panel li:hover,
+.review-picker-panel li.active{
+  background:var(--accent-bg);color:var(--accent);
+}
+.review-picker-panel li .nav-dot{
+  width:8px;height:8px;border-radius:50%;
+}
+.review-picker-panel li .nav-dot.pass{background:var(--green)}
+.review-picker-panel li .nav-dot.fail{background:var(--red)}
+.review-picker-panel li .picker-id{
+  color:var(--text-light);font-weight:700;
+  font-variant-numeric:tabular-nums;
+}
+.review-picker-panel li .picker-name{
+  min-width:0;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.review-picker-panel li .picker-delta{
+  font-size:0.75rem;font-weight:600;font-variant-numeric:tabular-nums;
+}
+.review-picker-panel li .picker-delta.up  {color:var(--green)}
+.review-picker-panel li .picker-delta.down{color:var(--red)}
+.review-picker-panel li .picker-delta.flat{color:var(--text-light)}

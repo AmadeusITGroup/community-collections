@@ -1,0 +1,39 @@
+/* Tiny pills for numeric deltas, severity, and skill-feedback categories.
+   .delta-chip   — red/green/amber/neutral numeric delta.
+   .impact-chip  — blocking/major/minor severity.
+   .cat-tag      — skill-feedback category label. */
+
+.delta-chip{
+  display:inline-flex;align-items:center;justify-content:center;
+  min-width:52px;padding:2px 8px;border-radius:10px;
+  font-size:0.72rem;font-weight:700;letter-spacing:0.3px;line-height:1.3;
+  font-variant-numeric:tabular-nums;
+  white-space:nowrap;
+}
+.delta-chip.pos {background:var(--green-bg);    color:var(--green)}
+.delta-chip.neg {background:var(--red-bg);      color:var(--red)}
+.delta-chip.flat{background:var(--border-light);color:var(--text-muted)}
+/* Cost-side regressions (time/tokens) are expected tradeoffs, not failures. */
+.delta-chip.cost{background:var(--warn-bg);     color:var(--warn)}
+
+.impact-chip{
+  display:inline-flex;align-items:center;gap:4px;
+  padding:2px 8px;border-radius:10px;
+  font-size:0.7rem;font-weight:700;letter-spacing:0.4px;text-transform:uppercase;
+  line-height:1.3;
+}
+.impact-chip.blocking{background:var(--red-bg);     color:var(--red)}
+.impact-chip.major   {background:var(--warn-bg);    color:var(--warn)}
+.impact-chip.minor   {background:var(--border-light);color:var(--text-muted)}
+
+.cat-tag{
+  display:inline-flex;align-items:center;
+  padding:2px 8px;border-radius:10px;
+  font-size:0.68rem;font-weight:600;letter-spacing:0.3px;text-transform:uppercase;
+  background:var(--border-light);color:var(--text-muted);
+  white-space:nowrap;
+}
+.cat-tag.missing_from_skill    {background:var(--warn-bg);     color:var(--warn)}
+.cat-tag.ambiguous_instructions{background:var(--ai-accent-light);color:var(--ai-accent)}
+.cat-tag.broken_references     {background:var(--red-bg);      color:var(--red)}
+.cat-tag.outdated_or_wrong     {background:var(--border-light);color:var(--text-muted)}

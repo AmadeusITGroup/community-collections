@@ -1,0 +1,13 @@
+/* Inline variant marker injected into comparator reasoning prose by
+   `highlightVariants` (review-ab-comparison.js). Renders the variant's name
+   with the variant's tinted background. */
+
+.variant-tag{
+  padding:1px 6px;border-radius:4px;
+  font-size:0.8rem;font-weight:700;
+}
+.variant-tag.ws,
+.variant-tag.current  {color:var(--var-ws);      background:var(--var-ws-bg)}
+.variant-tag.wos,
+.variant-tag.previous {color:var(--var-wos);     background:var(--var-wos-bg)}
+.variant-tag.baseline {color:var(--var-baseline);background:var(--var-baseline-bg)}

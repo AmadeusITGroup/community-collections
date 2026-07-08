@@ -1,0 +1,34 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/AmadeusITGroup/prompt-registry/refs/heads/main/schemas/collection.schema.json
+id: skill-eval
+name: Skill Eval
+description: "Evaluation toolbox for Agent Skills — author eval suites and run them with LLM-as-judge grading, blind A/B comparison, per-variant sandboxing, and cross-iteration regression tracking, so a skill's quality can be measured and gated as it evolves."
+tags:
+  - skill-eval
+  - evals
+  - evaluation
+  - llm-as-judge
+  - ab-comparison
+  - regression-tracking
+  - skill-quality
+items:
+  - path: skill-eval/skills/skill-eval-generator/SKILL.md
+    kind: skill
+  - path: skill-eval/skills/skill-eval-runner/SKILL.md
+    kind: skill
+  - path: skill-eval/agents/skill-eval-runner.agent.md
+    kind: agent
+  - path: skill-eval/agents/skill-eval-executor.agent.md
+    kind: agent
+  - path: skill-eval/agents/skill-eval-grader.agent.md
+    kind: agent
+  - path: skill-eval/agents/skill-eval-comparator.agent.md
+    kind: agent
+  - path: skill-eval/agents/skill-eval-analyzer.agent.md
+    kind: agent
+version: "1.0.0"
+author: "Cyril Colombel"
+readme:
+  path: skill-eval/README.md
+display:
+  ordering: manual
+  show_badge: true

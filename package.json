@@ -12,6 +12,8 @@
     "install-hooks": "git config core.hooksPath .githooks",
     "skill:validate": "validate-skills",
     "skill:create": "create-skill",
+    "eval:list": "python3 skill-eval/skills/skill-eval-runner/scripts/list_evals.py",
+    "test": "python3 skill-eval/tests/run_tests.py",
     "build": "build-collection-bundle",
     "publish": "publish-collections"
   },

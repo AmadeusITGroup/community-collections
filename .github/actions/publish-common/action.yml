@@ -9,6 +9,9 @@ outputs:
   validation-status:
     description: Validation status (success or failure)
     value: ${{ steps.validate.outputs.status }}
+  test-status:
+    description: Python unit-test status (success or failure)
+    value: ${{ steps.tests.outputs.status }}
 runs:
   using: composite
   steps:
@@ -21,6 +24,11 @@ runs:
       with:
         node-version: ${{ inputs.node-version }}
         registry-url: 'https://registry.npmjs.org'
+
+    - name: Setup Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.x'
 
     - name: Install dependencies
       shell: bash
@@ -38,6 +46,27 @@ runs:
           echo "status=failure" >> $GITHUB_OUTPUT
         fi
 
+    # Zero-dependency stdlib unittest suite for the skill-eval framework via a
+    # path-based runner (skill test dirs contain dashes, so `unittest discover`
+    # can't import them). Verbose log goes to test-results.txt; a summary is
+    # appended to the PR comment. Status is captured so the comment/artifacts
+    # still post; caller fails after.
+    - name: Run Python unit tests
+      id: tests
+      shell: bash
+      env:
+        CI: "true"
+      run: |
+        set -o pipefail
+        if npm test -- -v --md-summary test-summary.md 2>&1 | tee test-results.txt; then
+          echo "status=success" >> $GITHUB_OUTPUT
+        else
+          echo "status=failure" >> $GITHUB_OUTPUT
+        fi
+        if [ -f test-summary.md ]; then
+          { echo ""; echo "---"; echo ""; cat test-summary.md; } >> validation-comment.md
+        fi
+
     - name: Upload validation results
       if: always()
       uses: actions/upload-artifact@v4
@@ -47,5 +76,6 @@ runs:
           validation-comment.md
           validation.log
           pr-number.txt
+          test-results.txt
           collections/
         if-no-files-found: ignore

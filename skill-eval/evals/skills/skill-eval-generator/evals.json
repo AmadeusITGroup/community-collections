@@ -1,0 +1,125 @@
+{
+  "schema_version": "1.0.0",
+  "skill_name": "skill-eval-generator",
+  "skill_version": "1.0.0",
+  "description": "Evaluation test cases for skill-eval-generator covering triggering vs. deferral to the runner, refusal when the target skill is missing, browse-before-design grounding, FULL-mode fresh generation for the commit-message-writer fixture skill, INCREMENTAL merge that preserves human-refined content, [auto]-prefix and schema field-name discipline, generated-set coverage (negatives plus difficulty gradient), and eval-directory layout resolution.",
+  "evals": [
+    {
+      "id": 1,
+      "name": "defer-running-evals-to-runner",
+      "prompt": "Run the existing evals for commit-message-writer and tell me the pass rate.",
+      "expected_output": "The skill should recognize this is an execution request, not a generation request, and defer to /skill-eval-runner rather than generating or regenerating evals.json.",
+      "expectations": [
+        "Response recognizes the request is to run/execute evals, not to generate or scaffold them.",
+        "Response defers to /skill-eval-runner rather than writing or overwriting an evals.json.",
+        "Response does not fabricate pass rates, benchmark numbers, or grading results."
+      ]
+    },
+    {
+      "id": 2,
+      "name": "refuse-generate-for-nonexistent-skill",
+      "prompt": "Generate evals for a skill called quantum-teleporter-9000. Scaffold the full evals.json now.",
+      "expected_output": "The skill should attempt to locate skills/quantum-teleporter-9000/SKILL.md, find it absent, and decline to generate evals for a skill that does not exist rather than inventing a testable surface area.",
+      "expectations": [
+        "Response reports that the target skill quantum-teleporter-9000 cannot be found under skills/.",
+        "Response declines to generate evals.json for the non-existent skill instead of inventing scenarios.",
+        "Response does not fabricate a SKILL.md, references, routing tables, or expectations for a skill it never read."
+      ]
+    },
+    {
+      "id": 3,
+      "name": "browse-before-design-grounds-in-skill",
+      "prompt": "Generate evals for the commit-message-writer skill at files/fixture-skills/commit-message-writer. Read the skill first and ground the eval scenarios in what it actually specifies.",
+      "expected_output": "A PHASE 1 browse of the fixture SKILL.md (and references/examples.md) followed by eval scenarios that reflect the skill's real content: the change-type routing table, the 50/72-character formatting thresholds, the breaking-change !/footer rule, and the When-NOT-to-use boundaries. Expectations should test conclusions, not incidental keywords.",
+      "files": [
+        "files/fixture-skills/commit-message-writer/SKILL.md",
+        "files/fixture-skills/commit-message-writer/references/examples.md"
+      ],
+      "expectations": [
+        "Response reads the fixture SKILL.md before designing any eval scenarios.",
+        "Response derives at least one eval from the change-type routing table (e.g. feat vs fix vs docs selection).",
+        "Response derives at least one eval from a concrete threshold in the skill, such as the 50-character subject limit, 72-character body wrap, or the >1-concern body rule.",
+        "Response scans the referenced examples.md rather than relying only on the SKILL.md body.",
+        "Generated expectations test the correct conclusion (e.g. which type is chosen and why) rather than merely whether a keyword appears."
+      ]
+    },
+    {
+      "id": 4,
+      "name": "full-mode-fresh-generation-valid-schema",
+      "prompt": "There are no evals yet for commit-message-writer (fixture at files/fixture-skills/commit-message-writer). Do a full generation pass and write a valid evals.json.",
+      "expected_output": "A FULL-mode generation: a valid evals.json whose skill_name is commit-message-writer, skill_version matches the fixture's metadata.version (2.1.0), IDs are unique and sequential, names are kebab-case, and the set includes a mix of eval types with at least one negative case.",
+      "files": [
+        "files/fixture-skills/commit-message-writer/SKILL.md",
+        "files/fixture-skills/commit-message-writer/references/examples.md"
+      ],
+      "expectations": [
+        "Response produces a single valid JSON object with the required top-level fields skill_name, skill_version, and evals.",
+        "Response sets skill_name to commit-message-writer and skill_version to the fixture skill's metadata.version value 2.1.0.",
+        "Every generated eval entry has a unique integer id and a kebab-case name.",
+        "The generated set includes at least one negative or When-NOT-to-use eval (e.g. declining to actually run git commit, or refusing a no-changes request).",
+        "The generated set spans a difficulty gradient, with at least one clear-cut case and one ambiguous or multi-concern case."
+      ]
+    },
+    {
+      "id": 5,
+      "name": "incremental-merge-preserves-human-refined",
+      "prompt": "An evals.json already exists for commit-message-writer (see files/fixture-existing-evals/mixed-provenance-evals.json). Regenerate evals for the fixture skill and merge with the existing file instead of overwriting it.",
+      "expected_output": "An INCREMENTAL merge that treats the existing file as authoritative for human content: expectations and prompts WITHOUT the [auto] prefix are preserved verbatim, [auto]-prefixed prompts/expectations may be replaced, the manually added eval (id 7, manual-multi-scope-monorepo) survives untouched, and any new eval entries get IDs starting from max(existing id)+1 so they never collide with id 7.",
+      "files": [
+        "files/fixture-skills/commit-message-writer/SKILL.md",
+        "files/fixture-skills/commit-message-writer/references/examples.md",
+        "files/fixture-existing-evals/mixed-provenance-evals.json"
+      ],
+      "expectations": [
+        "Response preserves the human-refined (non-[auto]) expectation on eval id 1 verbatim rather than rewriting or dropping it.",
+        "Response preserves the manually added eval id 7 (manual-multi-scope-monorepo) and its non-[auto] prompt and expectations unchanged.",
+        "Response may replace or refresh only the prompts and expectations that carry the [auto] prefix.",
+        "Response assigns any brand-new eval entries IDs starting from max(existing id)+1, i.e. 8 or higher, so they do not collide with the existing id 7.",
+        "Response does not create a second duplicate evals.json; it merges back into the file that already exists."
+      ]
+    },
+    {
+      "id": 6,
+      "name": "auto-prefix-and-schema-field-names",
+      "prompt": "Generate evals for the commit-message-writer fixture and be strict about the output schema and the [auto]-prefix convention.",
+      "expected_output": "Output that respects the runner's schema exactly: the array key is expectations (not assertions), the per-variant field is expected_output, and the [auto] prefix appears on prompt and on each expectations entry but NOT on name, id, expected_output, skill_name, skill_version, or description.",
+      "files": [
+        "files/fixture-skills/commit-message-writer/SKILL.md"
+      ],
+      "expectations": [
+        "Response uses the exact field name expectations for the checks array and does not rename it to assertions or checks.",
+        "Response prefixes every generated prompt and every generated expectations entry with [auto].",
+        "Response does NOT prefix name, id, expected_output, skill_name, skill_version, or description with [auto].",
+        "Response keeps files paths (when present) relative to the skill's eval directory, e.g. files/..., rather than absolute paths."
+      ]
+    },
+    {
+      "id": 7,
+      "name": "generated-set-includes-negative-and-gradient",
+      "prompt": "Generate a focused, high-quality eval set for the commit-message-writer fixture. I care more about diverse coverage than volume.",
+      "expected_output": "A small but diverse set (roughly 4-8 evals) that follows the skill's design principles: specificity over breadth, at least one negative/When-NOT-to-use case, a difficulty gradient from an easy clear-cut scenario to a hard ambiguous one, and expectations that test understanding rather than keyword presence.",
+      "files": [
+        "files/fixture-skills/commit-message-writer/SKILL.md",
+        "files/fixture-skills/commit-message-writer/references/examples.md"
+      ],
+      "expectations": [
+        "Response favors a focused set (roughly 4-8 diverse evals) over a large set of near-duplicate scenarios.",
+        "Response includes at least one negative eval derived from the When-NOT-to-use section (e.g. refusing to run git commit, changelog request, or no-changes input).",
+        "Response includes both an easy clear-cut scenario and a harder ambiguous or multi-concern scenario.",
+        "Response avoids expectations that pass for any answer mentioning a keyword, favoring checks on the actual conclusion or reasoning."
+      ]
+    },
+    {
+      "id": 8,
+      "name": "eval-directory-layout-resolution",
+      "prompt": "Where will you write the generated evals.json for commit-message-writer, and how do you decide between the canonical location and a colocated one?",
+      "expected_output": "The skill should explain eval-directory resolution: FULL mode writes to the canonical evals/skills/{skill_name}/, INCREMENTAL mode writes back to whichever layout already holds the existing evals.json (canonical evals/skills/{skill_name}/ or colocated skills/{skill_name}/evals/), canonical wins if both exist, and it should not create a second copy that would make the runner warn about an ambiguous source.",
+      "expectations": [
+        "Response states that a fresh FULL-mode generation is written to the canonical evals/skills/{skill_name}/ location.",
+        "Response states that INCREMENTAL mode writes back to whichever layout already contains the existing evals.json rather than creating a new one elsewhere.",
+        "Response identifies both the canonical evals/skills/{skill_name}/ and the colocated skills/{skill_name}/evals/ layouts and notes canonical wins if both already exist.",
+        "Response explains that creating a duplicate second copy is avoided because it would make the runner warn about an ambiguous eval source."
+      ]
+    }
+  ]
+}

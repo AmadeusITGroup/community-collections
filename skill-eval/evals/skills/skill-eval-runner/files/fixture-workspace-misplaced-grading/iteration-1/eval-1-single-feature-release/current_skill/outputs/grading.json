@@ -1,0 +1,31 @@
+{
+  "expectations": [
+    {
+      "text": "Response groups PR #812 under a Features heading.",
+      "passed": true,
+      "evidence": ["### Features", "- Add dark-mode toggle to settings (#812)"]
+    },
+    {
+      "text": "Response references the PR number #812.",
+      "passed": true,
+      "evidence": ["- Add dark-mode toggle to settings (#812)"]
+    },
+    {
+      "text": "Response omits empty groups (no empty Fixes/Docs/Internal sections).",
+      "passed": true,
+      "evidence": ["## v1.4.0\n\n### Features"]
+    }
+  ],
+  "summary": {
+    "passed": 3,
+    "failed": 0,
+    "total": 3,
+    "pass_rate": 1.0
+  },
+  "claims": [],
+  "eval_feedback": {
+    "suggestions": [],
+    "missing": [],
+    "overall": "All three expectations are cleanly satisfied by a well-formed release-notes section."
+  }
+}

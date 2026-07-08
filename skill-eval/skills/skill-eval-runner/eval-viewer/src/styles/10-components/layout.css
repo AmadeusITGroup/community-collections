@@ -1,0 +1,39 @@
+/* Page-level layout — sidebar + main column under the fixed top chrome. */
+
+.app-layout{
+  display:flex;
+  margin-top:var(--chrome-h);
+  min-height:calc(100vh - var(--chrome-h));
+}
+.main-content{
+  flex:1;min-width:0;
+  margin-left:var(--sidebar-w);
+  padding:28px 36px 80px;
+  transition:margin-left var(--tr);
+}
+@media(min-width:1600px){.main-content{padding-right:56px}}
+
+.app-footer{
+  margin-left:var(--sidebar-w);
+  padding:24px;text-align:center;
+  font-size:0.75rem;color:var(--text-light);
+  border-top:1px solid var(--border-light);
+  transition:margin-left var(--tr);
+}
+
+@media(max-width:768px){
+  .main-content{margin-left:0;padding:20px 16px 80px}
+  .app-footer{margin-left:0}
+}
+
+/* Print: drop chrome, expand collapsibles, force light background. */
+@media print{
+  .top-bar,.page-tabs,.sidebar,.sidebar-toggle,.back-to-top,.theme-toggle,
+  .iter-control,#scroll-progress,.feedback-area,.feedback-status{
+    display:none !important;
+  }
+  .app-layout{margin-top:0}
+  .main-content,.app-footer{margin-left:0;padding:0}
+  .card{break-inside:avoid;box-shadow:none;border:1px solid #ccc}
+  body{background:#fff;color:#000;font-size:12px}
+}
