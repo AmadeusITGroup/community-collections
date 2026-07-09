@@ -19,6 +19,10 @@ A code-review skill should always check security, performance, and style — in 
 
 ## Section by section
 
+### Anatomy (what a skill is physically)
+
+A skill is a folder named in kebab-case, holding a `SKILL.md` plus any linked files beside it. `SKILL.md` starts with YAML frontmatter (`name`, `description`, and optional `disable-model-invocation`), then the body. Presence of `disable-model-invocation: true` is the switch between the two invocation modes below. Individual agents may honour extra fields (like tool restrictions) — check your agent's docs.
+
 ### Invocation (who fires the skill?)
 
 Two options:
@@ -42,7 +46,7 @@ Three levels:
 
 1. **Steps** — the ordered things the agent does. These go in the main `SKILL.md`.
 2. **Rules/reference** — definitions, checklists, standards the agent looks up as needed. Also fine in `SKILL.md` if short.
-3. **Detailed reference** — big tables, glossaries, long rule sets. Push these into a separate linked file (like `GLOSSARY.md`) so the main file stays readable.
+3. **External (disclosed) reference** — big tables, glossaries, long rule sets. Push these into a separate linked file (like `GLOSSARY.md`) so the main file stays readable.
 
 ### When to split a skill into two
 
@@ -68,6 +72,8 @@ Four questions to ask of every line:
 2. Does this appear anywhere else in the skill? (if yes, delete one copy)
 3. Would the agent do this anyway without being told? (if yes, delete it — it is a no-op)
 4. Can I move this to a linked file since only some runs need it?
+
+`SKILL.md` closes with a miniature worked example — one review step rewritten to apply three of these levers at once (no-op cut, leading word, disclosure).
 
 ## Why this matters for day-to-day engineering skills
 

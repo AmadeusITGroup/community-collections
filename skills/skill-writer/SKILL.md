@@ -8,6 +8,20 @@ A skill exists to wrangle determinism out of a stochastic system. **Predictabili
 
 **Bold terms** are defined in [`GLOSSARY.md`](GLOSSARY.md); look them up there for the full meaning.
 
+## Anatomy
+
+A skill is a folder whose name is the skill's name in kebab-case (`skill-writer/`), holding a `SKILL.md` plus any disclosed files beside it. `SKILL.md` opens with YAML frontmatter, then the body:
+
+```yaml
+---
+name: skill-writer             # matches the folder name
+description: ...               # the model-facing trigger; keep it and the skill is model-invoked
+disable-model-invocation: true # present → user-invoked (description becomes human-facing); absent → model-invoked
+---
+```
+
+`name`, `description`, and `disable-model-invocation` are the fields this reference relies on; individual agents may honour others (tool restrictions, for one) — check your agent's own docs for those. A disclosed file is any sibling `.md` reached by a relative link from the body (this skill points at [`GLOSSARY.md`](GLOSSARY.md)); its name says what it holds. The rest of this reference is about what to put in the body and what to push out of it.
+
 ## Invocation
 
 Two choices, trading different costs:
@@ -74,9 +88,28 @@ Check every line for **relevance**: does it still bear on what the skill does?
 
 Then hunt **no-ops** sentence by sentence, not just line by line: run the no-op test on each sentence in isolation, and when one fails, delete the whole sentence rather than trim words from it. Be aggressive — most prose that fails should go, not be rewritten.
 
+### A pass in miniature
+
+One step of a review skill, before:
+
+```markdown
+Be thorough and careful. Look at every file in the diff, checking each one for
+security problems, then performance problems, then style problems. Read the
+whole OWASP Top 10 list (reproduced below) as you go: [80 lines of OWASP text]
+```
+
+After — a **leading word** replaces the effort prose, the reordered checks stay inline, and the list is **disclosed** behind a **context pointer**:
+
+```markdown
+Review each file in the diff for security, then performance, then style — see
+[`owasp.md`](owasp.md) for the security checklist. Done when every file is accounted for.
+```
+
+Three levers in one cut: `thorough and careful` was a **no-op** (the agent is already both) collapsed into one demanding **completion criterion**; the 80-line list dropped down the **information hierarchy**; the ordered checks that every run needs stayed put.
+
 ## Leading words
 
-A **leading word** is a compact concept already familiar to the agent that it thinks with while running the skill (e.g. _lesson_, _fog of war_, _tracer bullets_). Repeated throughout the text (though not necessarily - a strong leading word might only be needed once), it accumulates a distributed definition and anchors a whole region of behaviour in the fewest tokens, by drawing on understanding the agent already has.
+A **leading word** is a compact concept already familiar to the agent that it thinks with while running the skill (e.g. _lesson_, _fog of war_, _tracer bullets_). Repeated throughout the text (though not necessarily — a strong leading word might only be needed once), it accumulates a distributed definition and anchors a whole region of behaviour in the fewest tokens, by drawing on understanding the agent already has.
 
 It serves predictability twice. In the body it anchors _execution_: the agent reaches for the same behaviour every time the word appears. In the description it anchors _invocation_: when the same word lives in your prompts, docs, and code, the agent links that shared language to the skill and fires it more reliably.
 
