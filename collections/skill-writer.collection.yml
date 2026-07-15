@@ -1,0 +1,19 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/AmadeusITGroup/prompt-registry/refs/heads/main/schemas/collection.schema.json
+id: skill-writer
+name: Skill Writer
+description: "A style guide for writing agent instructions — teaches you to write skills the agent follows the same way every run, without wasting tokens: invocation choices, description writing, information hierarchy, leading words, and pruning."
+tags:
+  - skill-writer
+  - skills
+  - authoring
+  - agent-skills
+  - best-practices
+items:
+  - path: skills/skill-writer/SKILL.md
+    kind: skill
+version: "1.0.0"
+readme:
+  path: skills/skill-writer/README.md
+display:
+  ordering: manual
+  show_badge: true
