@@ -27,7 +27,7 @@ disable-model-invocation: true # present → user-invoked (description becomes h
 Two choices, trading different costs:
 
 - A **model-invoked** skill keeps a **description**, so the agent can fire it autonomously _and_ other skills can reach it (you can still type its name too). It contributes to **context load** — the description sits in the window every turn. Mechanics: omit `disable-model-invocation`, and write a model-facing description with rich trigger phrasing ("Use when the user wants…, mentions…").
-- A **user-invoked** skill strips the description from the agent's reach: only you, typing its name, can invoke it — and no other skill can. Zero context load, but it spends **cognitive load**: _you_ are the index that must remember it exists. Mechanics: set `disable-model-invocation: true`; the `description` becomes human-facing — a one-line summary, trigger lists stripped.
+- A **user-invoked** skill strips the description from the agent's reach: in agents that honour `disable-model-invocation`, it fires only when you type its name — the agent won't reach for it on its own, and no other skill can. Zero context load, but it spends **cognitive load**: _you_ are the index that must remember it exists. Mechanics: set `disable-model-invocation: true`; the `description` becomes human-facing — a one-line summary, trigger lists stripped.
 
 Pick model-invocation only when the agent must reach the skill on its own, or another skill must. If it only ever fires by hand, make it user-invoked and pay no context load.
 
@@ -105,7 +105,7 @@ Review each file in the diff for security, then performance, then style — see
 [`owasp.md`](owasp.md) for the security checklist. Done when every file is accounted for.
 ```
 
-Three levers in one cut: `thorough and careful` was a **no-op** (the agent is already both) collapsed into one demanding **completion criterion**; the 80-line list dropped down the **information hierarchy**; the ordered checks that every run needs stayed put.
+The rewrite applies three levers at once. `thorough and careful` is a **no-op** — the agent is already both — so it goes, its intent carried instead by one demanding **completion criterion** ("every file accounted for"). The 80-line list drops down the **information hierarchy** behind a **context pointer**. The ordered checks that every run needs stay inline.
 
 ## Leading words
 
