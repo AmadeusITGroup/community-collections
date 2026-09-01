@@ -1,7 +1,7 @@
 {
   "extends": ["config:recommended", ":dependencyDashboard", ":semanticCommits"],
-  "prConcurrentLimit": 10,
-  "prHourlyLimit": 2,
-  "labels": ["dependencies"],
+  "prConcurrentLimit": 3,
+  "prHourlyLimit": 3,
+  "labels": ["renovate"],
   "packageRules": []
 }

@@ -5,8 +5,6 @@ description: "Agent and skills for setting up, configuring, and troubleshooting 
 tags:
   - renovate
   - dependency-management
-  - dependency-updates
-  - troubleshooting
 items:
   - path: renovate/agents/renovate.agent.md
     kind: agent

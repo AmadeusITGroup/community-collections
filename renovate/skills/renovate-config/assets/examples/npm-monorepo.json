@@ -1,12 +1,12 @@
 {
   "extends": ["config:recommended", ":dependencyDashboard", ":semanticCommits"],
-  "prConcurrentLimit": 5,
-  "prHourlyLimit": 2,
+  "prConcurrentLimit": 3,
+  "prHourlyLimit": 3,
   "minimumReleaseAge": "3 days",
   "osvVulnerabilityAlerts": true,
   "vulnerabilityAlerts": { "labels": ["security"] },
   "lockFileMaintenance": { "enabled": true },
-  "labels": ["dependencies"],
+  "labels": ["renovate"],
   "packageRules": [
     { "matchPackagePrefixes": ["@angular/"], "groupName": "angular" },
     { "matchPackagePrefixes": ["@nx/"], "groupName": "nx" },

@@ -12,9 +12,9 @@ Use this focused catalog when building repository-level `renovate.json` files. V
 
 | Goal                               | Option                | Recommended starting value      |
 | ---------------------------------- | --------------------- | ------------------------------- |
-| Limit concurrent pull requests     | `prConcurrentLimit`   | `10`                            |
-| Limit hourly pull-request creation | `prHourlyLimit`       | `2`                             |
-| Identify Renovate pull requests    | `labels`              | `["dependencies"]`              |
+| Limit concurrent pull requests     | `prConcurrentLimit`   | `3`                            |
+| Limit hourly pull-request creation | `prHourlyLimit`       | `3`                             |
+| Identify Renovate pull requests    | `labels`              | `["renovate"]`              |
 | Track deferred updates             | `dependencyDashboard` | Enabled by `config:recommended` |
 
 ## Update Grouping
