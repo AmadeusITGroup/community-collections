@@ -1,4 +1,4 @@
-# yaml-language-server: $schema=https://raw.githubusercontent.com/AmadeusITGroup/prompt-registry/refs/heads/main/schemas/collection.schema.json
+# yaml-language-server: $schema=https://raw.githubusercontent.com/AmadeusITGroup/ai-primitives-hub/refs/heads/main/packages/core/src/public/schemas/collection.schema.json
 id: foursight-code-assessment
 name: FourSight Code Assessment
 description: "Skill for comprehensive code assessment using four specialized evaluation dimensions — functionality, performance, maintainability, and security — to provide a holistic analysis of code quality."

@@ -1,4 +1,4 @@
-# yaml-language-server: $schema=https://raw.githubusercontent.com/AmadeusITGroup/prompt-registry/refs/heads/main/schemas/collection.schema.json
+# yaml-language-server: $schema=https://raw.githubusercontent.com/AmadeusITGroup/ai-primitives-hub/refs/heads/main/packages/core/src/public/schemas/collection.schema.json
 id: amadeus-ospo
 name: Amadeus OSPO
 description: Skills collection for Amadeus OSPO - InnerSource and Open Source readiness assessments, GitHub triage tools

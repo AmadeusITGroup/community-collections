@@ -1,0 +1,21 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/AmadeusITGroup/ai-primitives-hub/refs/heads/main/packages/core/src/public/schemas/collection.schema.json
+id: renovate
+name: Renovate
+description: "Agent and skills for setting up, configuring, and troubleshooting Renovate dependency management through guided, best-practice-driven workflows."
+tags:
+  - renovate
+  - dependency-management
+  - dependency-updates
+  - troubleshooting
+items:
+  - path: renovate/agents/renovate.agent.md
+    kind: agent
+  - path: renovate/skills/renovate-config/SKILL.md
+    kind: skill
+version: "1.0.0"
+author: "Mahesh GADAGI, Waldek Herka"
+readme:
+  path: renovate/README.md
+display:
+  ordering: manual
+  show_badge: true

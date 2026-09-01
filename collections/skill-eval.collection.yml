@@ -1,4 +1,4 @@
-# yaml-language-server: $schema=https://raw.githubusercontent.com/AmadeusITGroup/prompt-registry/refs/heads/main/schemas/collection.schema.json
+# yaml-language-server: $schema=https://raw.githubusercontent.com/AmadeusITGroup/ai-primitives-hub/refs/heads/main/packages/core/src/public/schemas/collection.schema.json
 id: skill-eval
 name: Skill Eval
 description: "Evaluation toolbox for Agent Skills — author eval suites and run them with LLM-as-judge grading, blind A/B comparison, per-variant sandboxing, and cross-iteration regression tracking, so a skill's quality can be measured and gated as it evolves."
