@@ -1,0 +1,125 @@
+{
+  "sessionStartTime": "2026-10-13T00:00:00.000Z",
+  "totalApiDurationMs": 1400,
+  "modelMetrics": {
+    "gpt-5.6-luna": {
+      "requests": {},
+      "usage": {
+        "inputTokens": 70,
+        "cacheReadTokens": 25,
+        "cacheCreationTokens": 2,
+        "cacheWriteTokens": 4,
+        "outputTokens": 20,
+        "reasoningTokens": 3
+      }
+    },
+    "gpt-6-luna": {
+      "requests": {},
+      "usage": {
+        "inputTokens": 10,
+        "cacheReadTokens": 9,
+        "cacheCreationTokens": 3,
+        "cacheWriteTokens": 1,
+        "outputTokens": 5,
+        "reasoningTokens": 1
+      }
+    }
+  },
+  "providerModelMetrics": {
+    "gpt-5.6-luna": {
+      "usage": {
+        "inputTokens": 70,
+        "cacheReadTokens": 25,
+        "cacheWriteTokens": 4,
+        "outputTokens": 20,
+        "reasoningTokens": 3
+      }
+    },
+    "gpt-6-luna": {
+      "usage": {
+        "inputTokens": 10,
+        "cacheReadTokens": 9,
+        "cacheWriteTokens": 1,
+        "outputTokens": 5,
+        "reasoningTokens": 1
+      }
+    }
+  },
+  "agentMetrics": {
+    "raw-agent-id-executor": {
+      "agentDisplayName": "eval-1-executor",
+      "agentName": "executor-internal-id",
+      "totalApiDurationMs": 500,
+      "modelMetrics": {
+        "gpt-5.6-luna": {
+          "usage": {
+            "inputTokens": 50,
+            "cacheReadTokens": 20,
+            "cacheWriteTokens": 4,
+            "outputTokens": 10,
+            "reasoningTokens": 3
+          }
+        }
+      }
+    },
+    "raw-agent-id-grader": {
+      "agentDisplayName": "eval-1-grader",
+      "agentName": "grader-internal-id",
+      "totalApiDurationMs": 300,
+      "modelMetrics": {
+        "gpt-6-luna": {
+          "usage": {
+            "inputTokens": 10,
+            "cacheReadTokens": 9,
+            "cacheWriteTokens": 1,
+            "outputTokens": 5,
+            "reasoningTokens": 1
+          }
+        }
+      }
+    },
+    "raw-agent-id-comparator-a": {
+      "agentDisplayName": "eval-1-comparator",
+      "agentName": "comparator-internal-id-a",
+      "totalApiDurationMs": 100,
+      "modelMetrics": {
+        "gpt-5.6-luna": {
+          "usage": {
+            "inputTokens": 10,
+            "cacheReadTokens": 2,
+            "cacheWriteTokens": 0,
+            "outputTokens": 5,
+            "reasoningTokens": 0
+          }
+        }
+      }
+    },
+    "raw-agent-id-comparator-b": {
+      "agentDisplayName": "eval-1-comparator",
+      "agentName": "comparator-internal-id-b",
+      "totalApiDurationMs": 200,
+      "modelMetrics": {
+        "gpt-5.6-luna": {
+          "usage": {
+            "inputTokens": 10,
+            "cacheReadTokens": 3,
+            "cacheWriteTokens": 0,
+            "outputTokens": 5,
+            "reasoningTokens": 0
+          }
+        }
+      }
+    },
+    "raw-agent-id-unknown": {
+      "agentDisplayName": "custom helper with private task text",
+      "agentName": "unknown-internal-id",
+      "totalApiDurationMs": 100,
+      "modelMetrics": {}
+    }
+  },
+  "totalUserRequests": 2,
+  "codeChanges": {
+    "files": ["private-fixture.py"]
+  },
+  "diagnosticPrompt": "synthetic prompt text must not be persisted"
+}

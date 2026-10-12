@@ -40,4 +40,3 @@ function formatDeltaNum(v){
   var n = parseFloat(v);
   return (n >= 0 ? "+" : "") + Math.round(n).toLocaleString();
 }
-

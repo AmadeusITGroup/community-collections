@@ -177,11 +177,11 @@ Three writers contribute, in order, and each owns a disjoint set of top-level ke
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `tool_calls` | object | Yes | Count per tool type using platform-specific tool names (Claude: `Read`/`Write`/`Bash`, Copilot: `read_file`/`create_file`/`run_in_terminal`). |
-| `total_tool_calls` | integer | Yes | Sum of tool calls. |
-| `total_steps` | integer | Yes | Number of major execution steps / turns, as observed by the executor. |
-| `files_created` | array of strings | Yes | Filenames (not paths) present in `outputs/` at the moment the executor finished. Always includes `response.md`. |
-| `output_chars` | integer | Yes | Byte length of `response.md` as written by the executor. |
+| `tool_calls` | object | No | Count per tool type using platform-specific tool names (Claude: `Read`/`Write`/`Bash`, Copilot: `read_file`/`create_file`/`run_in_terminal`). Omit when unavailable. |
+| `total_tool_calls` | integer | No | Sum of tool calls. Zero means a measured zero; omit when unavailable. |
+| `total_steps` | integer | No | Number of major execution steps / turns, as observed by the executor. Zero means a measured zero; omit when unavailable. |
+| `files_created` | array of strings | No | Filenames (not paths) present in `outputs/` at the moment the executor finished. Always includes `response.md` when reported. |
+| `output_chars` | integer | No | Byte length of `response.md` as written by the executor. Omit when unavailable. |
 
 ### `user_notes` fields
 
@@ -203,12 +203,17 @@ Shape is whatever the host surfaced. `finalize_metrics.py` stores the sidecar co
 |-------|------|-------------|
 | `spawned_at` / `returned_at` | string | ISO 8601 UTC parent wall-clock timestamps. |
 | `total_tokens` | integer | Host-reported token total, when available. |
+| `input_tokens` / `output_tokens` | integer | Host-reported input and output totals, when available. |
+| `input_cached_tokens` | integer | Cached subset of input tokens, when reported. |
+| `input_cache_creation_tokens` / `input_cache_write_tokens` | integer | Input-cache detail counters, when reported. |
+| `output_reasoning_tokens` | integer | Reasoning subset of output tokens, when reported. |
+| `model` | string | Host-reported model, when available. |
 | `duration_ms` | integer | Host-reported duration. |
 | `status` | string | Free-form status string (`ok`, `error`, etc.). |
 
 ### `host_telemetry` fields
 
-Sources, in precedence order: `debug_log` (VS Code `runSubagent-*.jsonl`) > `notification` > `wall_clock` (derived from `eval_metadata.prepared_at` + `response.md` mtime).
+Sources, in precedence order: `debug_log` (VS Code `runSubagent-*.jsonl`) > `notification` > `wall_clock` (derived from `eval_metadata.prepared_at` + `response.md` mtime). Sources merge per field: a higher-precedence source that omits a field does not erase a reported value from a lower-precedence source. `source` identifies the highest-precedence source that supplied token usage; if no source supplied tokens, it identifies the highest-precedence source that supplied other host telemetry. Copilot CLI final usage is handled separately after the CLI exits; it is not merged into per-run `host_telemetry`.
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
@@ -216,11 +221,14 @@ Sources, in precedence order: `debug_log` (VS Code `runSubagent-*.jsonl`) > `not
 | `completed_at` | string | Yes | ISO 8601 UTC. |
 | `duration_ms` | integer | No | Wall-clock duration in milliseconds. |
 | `total_duration_seconds` | float | No | `duration_ms / 1000`, convenience field. |
-| `total_tokens` | integer | No | Populated from `notification` or `debug_log`; absent under `wall_clock`. |
-| `input_tokens` / `output_tokens` | integer | No | Populated only when `source` is `debug_log`. |
-| `turn_count` | integer | No | LLM turn count from `debug_log`. |
+| `total_tokens` | integer | No | Reported total; absent when no source reports or can safely derive it. |
+| `input_tokens` / `output_tokens` | integer | No | Input and output totals. |
+| `input_cached_tokens` | integer | No | Cached subset of input tokens; do not add it to `input_tokens`. |
+| `input_cache_creation_tokens` / `input_cache_write_tokens` | integer | No | Cache detail counters; do not add them to input totals. |
+| `output_reasoning_tokens` | integer | No | Reasoning subset of output tokens; do not add it to `output_tokens`. |
+| `turn_count` | integer | No | Host-reported LLM turn count. |
 | `ttft_ms_first_turn` | integer | No | Time-to-first-token for the first turn (ms), from `debug_log`. |
-| `model` | string | No | Model name(s) from `debug_log`. Comma-joined when several appear. |
+| `model` | string | No | Model name(s) from the host. Comma-joined when several appear. |
 | `tool_calls` | object | No | Per-tool counts from `debug_log`. When present, downstream consumers prefer this over `self_report.tool_calls`. |
 | `total_tool_calls` | integer | No | Sum of log-derived tool calls. |
 | `tool_errors` | integer | No | Count of tool calls that returned an error, from `debug_log`. |
@@ -458,6 +466,100 @@ The comparator writes only the blind fields (`winner`, `rubric`, `reasoning`, `n
 
 ---
 
+## `session_usage.json` (legacy optional input)
+
+This legacy sidecar may be supplied by a caller for historical iterations.
+The finalizer no longer creates it from Copilot CLI debug logs. These totals
+describe a whole session and are never copied into individual `runs[]` or
+variant-level token statistics. The aggregator retains it as
+`benchmark.json.run_summary.session_usage`; the viewer may display a clearly
+identified session average per eval case by dividing a session counter by the
+number of distinct eval IDs in the iteration. This is an equal allocation for
+display, not measured per-run attribution.
+
+```json
+{
+  "input_tokens": 100,
+  "input_cached_tokens": 40,
+  "output_tokens": 25,
+  "output_reasoning_tokens": 10,
+  "ai_credits": 1.25,
+  "premium_requests": 1,
+  "duration_ms": 1200,
+  "models": ["gpt-5.5"],
+  "source": "copilot-cli"
+}
+```
+
+The legacy sidecar is distinct from the post-CLI `usage_summary.json` below.
+Allowed optional counters are `input_tokens`, `input_cached_tokens`,
+`input_cache_creation_tokens`, `input_cache_write_tokens`, `output_tokens`,
+`output_reasoning_tokens`, `total_tokens`, `premium_requests`, `duration_ms`,
+and `ai_credits`. Token and premium-request counters and `duration_ms` are
+non-negative integers; `ai_credits` is a finite, non-negative number. `models`
+is an array of model-name strings. `source` must be `"copilot-cli"`. Unknown
+keys are ignored. Invalid types, negative values, malformed JSON, or a missing
+source cause a sanitized warning and omit the session summary. If `total_tokens`
+is absent but both `input_tokens` and `output_tokens` are present, the
+aggregator derives their sum. A sidecar with no useful field is omitted.
+
+## `usage_summary.json` (post-Copilot-CLI report input)
+
+After GitHub Copilot CLI exits, run
+`generate_review.py WORKSPACE --skill-name SKILL --iteration N --usage-output-file PATH --static OUTPUT.html`.
+The command parses the final usage JSON and writes this sanitized, versioned
+summary into the corresponding iteration directory. The report generator
+consumes the summary directly; `metrics.json` and `benchmark.json` are not
+rewritten. Raw CLI usage JSON, task identifiers, agent display names, prompts,
+and the input file path are not copied into this sidecar.
+
+```json
+{
+  "schema_version": 1,
+  "source": "copilot-cli",
+  "eval_count": 2,
+  "session": {
+    "models": ["gpt-5.5"],
+    "input_tokens": 1000,
+    "input_cached_tokens": 400,
+    "output_tokens": 200,
+    "output_reasoning_tokens": 40,
+    "total_tokens": 1200,
+    "total_api_duration_ms": 5000
+  },
+  "eval_agents": [
+    {
+      "eval_id": "eval-1",
+      "role": "executor",
+      "variant": "current_skill",
+      "models": ["gpt-5.5"],
+      "input_tokens": 500,
+      "output_tokens": 100,
+      "total_tokens": 600
+    }
+  ],
+  "other_agents": [
+    {
+      "label": "Grader",
+      "models": ["gpt-5.5"],
+      "input_tokens": 250,
+      "output_tokens": 50,
+      "total_tokens": 300
+    }
+  ]
+}
+```
+
+Session metrics come from `modelMetrics`; `agentMetrics` supplies role-level
+detail. They overlap and must never be added together. `eval_count` is the
+number of distinct eval IDs found in the iteration. `eval_agents` may contain
+`eval_id`, `role`, optional uniquely attributed `variant`, `models`, and
+available token/cache/API-duration counters. `other_agents` groups non-eval
+roles into safe labels and includes the same available counters. Cached input
+and reasoning tokens are subsets, not additive totals. An equal session
+average is a display fallback only; comparator and recovery costs remain in
+aggregate totals and are not shown on Review cards.
+
 ## benchmark.json
 
 Aggregated benchmark produced by `aggregate_benchmark.py`. Located at `evals/{skill-name}/workspace/iteration-{N}/benchmark.json`.
@@ -482,6 +584,13 @@ Aggregated benchmark produced by `aggregate_benchmark.py`. Located at `evals/{sk
         "total": 6,
         "time_seconds": 42.5,
         "tokens": 3800,
+        "input_tokens": 3000,
+        "input_cached_tokens": 1200,
+        "input_cache_creation_tokens": 100,
+        "input_cache_write_tokens": 80,
+        "output_tokens": 800,
+        "output_reasoning_tokens": 250,
+        "model": "gpt-5.5",
         "total_tool_calls": 15,
         "total_steps": 6,
         "tool_errors": 0,
@@ -504,6 +613,14 @@ Aggregated benchmark produced by `aggregate_benchmark.py`. Located at `evals/{sk
       "pass_rate": {"mean": 0.35, "stddev": 0.08, "min": 0.28, "max": 0.45},
       "time_seconds": {"mean": 32.0, "stddev": 8.0, "min": 24.0, "max": 42.0},
       "tokens": {"mean": 2100.0, "stddev": 300.0, "min": 1800.0, "max": 2500.0}
+    },
+    "models": ["gpt-5.5"],
+    "session_usage": {
+      "input_tokens": 100,
+      "output_tokens": 25,
+      "total_tokens": 125,
+      "models": ["gpt-5.5"],
+      "source": "copilot-cli"
     },
     "delta": {
       "pass_rate": "+0.50",
@@ -612,21 +729,28 @@ Aggregated benchmark produced by `aggregate_benchmark.py`. Located at `evals/{sk
 | `runs[].result.failed` | integer | Yes | Count of failed expectations |
 | `runs[].result.total` | integer | Yes | Total expectations |
 | `runs[].result.time_seconds` | float | Yes | Execution time |
-| `runs[].result.tokens` | integer | Yes | Token usage |
+| `runs[].result.tokens` | integer or null | Yes | Per-run token usage, or JSON `null` when the host did not report an attributable value. A reported zero remains numeric zero. |
+| `runs[].result.input_tokens` | integer | No | Input token total when reported. |
+| `runs[].result.input_cached_tokens` | integer | No | Cached subset of input tokens when reported. |
+| `runs[].result.input_cache_creation_tokens` / `input_cache_write_tokens` | integer | No | Input-cache detail counters when reported. |
+| `runs[].result.output_tokens` | integer | No | Output token total when reported. |
+| `runs[].result.output_reasoning_tokens` | integer | No | Reasoning subset of output tokens when reported. |
 | `runs[].result.total_tool_calls` | integer | No | Sum of tool calls (surfaced for analyzer) |
 | `runs[].result.total_steps` | integer | No | Turn count (surfaced for analyzer) |
 | `runs[].result.tool_errors` | integer | No | Tool-call error count (surfaced for analyzer) |
 | `runs[].result.output_chars` | integer | No | Response byte count (surfaced for analyzer) |
 | `runs[].result.metrics_source` | string | No | Top-level `metrics.json.metrics_source` tag: `"debug_log"` or `"self_report"` |
 | `runs[].result.source` | string | No | Provenance of `host_telemetry`: `debug_log`, `notification`, or `wall_clock` |
-| `runs[].result.model` | string | No | Model name from `host_telemetry` when available (debug_log source only) |
+| `runs[].result.model` | string | No | Model name(s) from `host_telemetry` when available |
 | `runs[].source_iteration` | integer | No | The iteration this run's data was sourced from. Absent or equal to current iteration for fresh runs. Different when `without_skill` is reused from a baseline iteration. |
 | `runs[].expectations` | array | Yes | Copied from grading.json: `text` (string), `passed` (boolean), `evidence` (array of strings — one quoted passage per element) |
 | `run_summary` | object | Yes | Aggregate stats per configuration |
-| `run_summary.{config}` | object | Yes | Contains `pass_rate`, `time_seconds`, `tokens` objects. `config` is `current_skill`, `without_skill`, or `previous_skill`. The `previous_skill` bucket is present only when regression evals contributed runs in this iteration. |
-| `run_summary.{config}.{metric}` | object | Yes | Contains `mean`, `stddev`, `min`, `max` |
-| `run_summary.delta` | object | Yes | Differences (current_skill minus without_skill) as formatted strings |
-| `run_summary.regression_delta` | object | No | Differences between current iteration's `current_skill` and previous iteration's `current_skill`. Present only when `comparison_mode` is `"regression"` or `"mixed"`. Contains `pass_rate`, `time_seconds`, `tokens` as formatted strings (e.g., `"+0.05"`). |
+| `run_summary.{config}` | object | Yes | Contains `pass_rate`, `time_seconds`, and nullable `tokens` stats. `config` is `current_skill`, `without_skill`, or `previous_skill`. The `previous_skill` bucket is present only when regression evals contributed runs in this iteration. |
+| `run_summary.{config}.{metric}` | object | Yes | Contains `mean`, `stddev`, `min`, `max`. Token-stat values are all JSON `null` when there are no token samples; missing tokens are excluded, not counted as zero. |
+| `run_summary.models` | array of strings | Yes | Sorted distinct models from per-run results and the optional session summary. |
+| `run_summary.session_usage` | object | No | Validated session-level counters from `session_usage.json`; never apportioned into individual runs. |
+| `run_summary.delta` | object | Yes | Differences (current_skill minus without_skill). Pass-rate/time deltas are formatted strings; `tokens` is a formatted string or JSON `null` when either side has no token samples. |
+| `run_summary.regression_delta` | object | No | Differences between current iteration's `current_skill` and previous iteration's `current_skill`. Present only when `comparison_mode` is `"regression"` or `"mixed"`. `pass_rate` and `time_seconds` are formatted strings; `tokens` is a formatted string or JSON `null` when either side has no samples. |
 | `comparisons` | object | Yes | Blind comparison tallies |
 | `comparisons.current_skill_wins` | integer | Yes | Number of baseline evals where comparator preferred `current_skill` |
 | `comparisons.without_skill_wins` | integer | Yes | Number of baseline evals where comparator preferred `without_skill` |

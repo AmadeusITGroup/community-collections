@@ -1,20 +1,21 @@
 /* Review-tab per-eval block renderer (focus mode).
 
-   Each call renders ONE eval as a stack of seven sections. Anchor ids
+   Each call renders ONE eval as a stack of eight sections. Anchor ids
    match the slot keys in review-sidebar.js's REVIEW_SUBSECTIONS:
 
      1. Prompt           — #sec-prompt
      2. Output           — #sec-output
-     3. Expectations     — #sec-expectations  (handled by buildExpectationCompare)
-     4. Strengths/Weak.  — #sec-sw
-     5. A/B Comparison   — #sec-ab-comparison
-     6. Skill feedback   — #sec-feedback
-     7. Notes            — #sec-notes
+     3. Cost             — #sec-cost
+     4. Expectations     — #sec-expectations  (handled by buildExpectationCompare)
+     5. Strengths/Weak.  — #sec-sw
+     6. A/B Comparison   — #sec-ab-comparison
+     7. Skill feedback   — #sec-feedback
+     8. Notes            — #sec-notes
 
    Each section uses the canonical .sec-heading grammar (no card chrome),
    matching Progression and Benchmark. */
 
-function buildEvalReviewBlock(group, mode, oqSides){
+function buildEvalReviewBlock(group, mode, oqSides, reviewUsageContext){
   var html = "";
 
   /* 1. Prompt */
@@ -23,24 +24,27 @@ function buildEvalReviewBlock(group, mode, oqSides){
   /* 2. Output */
   html += renderOutputSection(group, mode);
 
-  /* 3. Expectations (graded) */
+  /* 3. Cost */
+  html += renderReviewCostSection(group, mode, reviewUsageContext);
+
+  /* 4. Expectations (graded) */
   var expectHtml = buildExpectationCompare(group.wos, group.ws, group.baseline);
   if(expectHtml) html += expectHtml;
 
-  /* 4. Strengths & Weaknesses */
+  /* 5. Strengths & Weaknesses */
   if(oqSides || group.wos || group.ws || (mode === "regression" && group.baseline)){
     html += renderStrengthsWeaknessesSection(group, mode, oqSides);
   }
 
-  /* 5. A/B Comparison */
+  /* 6. A/B Comparison */
   if(group.comparison){
     html += renderABComparisonSection(group, mode);
   }
 
-  /* 6. Skill feedback from this eval (current_skill variant only) */
+  /* 7. Skill feedback from this eval (current_skill variant only) */
   html += renderSkillFeedbackSection(group);
 
-  /* 7. Notes textarea */
+  /* 8. Notes textarea */
   html += renderNotesSection(group);
 
   return html;
@@ -108,8 +112,6 @@ function renderOutputSection(group, mode){
     html +=     '<span class="variant-pill ' + col.cls + '">' + esc(variantLabelTight(col.variant, mode)) + '</span>';
     html +=   '</div>';
     html +=   '<div class="variant-card-body">' + renderOutputBody(col.run) + '</div>';
-    var foot = renderGenerationMetrics(col.run);
-    if(foot) html += '<div class="variant-card-foot metrics-inline">' + foot + '</div>';
     html += '</div>';
   });
 
@@ -150,24 +152,225 @@ function renderOutputBody(run){
   return html;
 }
 
-function renderGenerationMetrics(run){
+function renderGenerationMetrics(run, usageOnly){
   if(!run) return "";
   var sr = (run.metrics && run.metrics.self_report) || {};
   var ht = (run.metrics && run.metrics.host_telemetry) || {};
   var toolCalls = ht.total_tool_calls != null ? ht.total_tool_calls : sr.total_tool_calls;
   var toolErrors = ht.tool_errors;
   var totalSteps = sr.total_steps;
-  var has = toolCalls != null || totalSteps != null || toolErrors != null ||
-    ht.total_duration_seconds != null || ht.total_tokens != null || ht.model;
+  var hasUsage = ht.total_tokens != null || ht.model || ht.input_tokens != null ||
+    ht.input_cached_tokens != null || ht.input_cache_creation_tokens != null ||
+    ht.input_cache_write_tokens != null || ht.output_tokens != null ||
+    ht.output_reasoning_tokens != null || ht.source != null;
+  var hasExecution = toolCalls != null || totalSteps != null || toolErrors != null ||
+    ht.total_duration_seconds != null || ht.turn_count != null;
+  var has = usageOnly ? hasUsage : (hasUsage || hasExecution);
   if(!has) return "";
   var out = "";
   if(ht.model) out += '<span>&#129504; <strong>' + esc(ht.model) + '</strong></span>';
-  if(ht.total_duration_seconds != null) out += '<span>&#9202; <strong>' + formatTime(ht.total_duration_seconds) + '</strong></span>';
-  if(ht.total_tokens != null) out += '<span>&#128221; <strong>' + formatNum(ht.total_tokens) + '</strong> tokens</span>';
-  if(toolCalls != null) out += '<span>&#128295; <strong>' + toolCalls + '</strong> tool calls</span>';
-  if(totalSteps != null) out += '<span>&#128260; <strong>' + totalSteps + '</strong> steps</span>';
-  if(toolErrors != null && toolErrors > 0) out += '<span style="color:var(--red)">&#9888; <strong>' + toolErrors + '</strong> errors</span>';
+  if(!usageOnly && ht.total_duration_seconds != null) out += '<span>&#9202; <strong>' + formatTime(ht.total_duration_seconds) + '</strong></span>';
+  if(ht.total_tokens != null){
+    out += '<span title="Exact token count: ' + esc(formatNum(ht.total_tokens)) +
+      ' tokens.">&#128221; <strong>' + window.__EV.formatTokenCount(ht.total_tokens) +
+      '</strong> tokens</span>';
+  } else {
+    out += '<span>&#128221; Token usage <strong>N/A</strong></span>';
+  }
+  var inputDetails = [];
+  if(ht.input_cached_tokens != null){
+    inputDetails.push(
+      '<span title="Exact token count: ' + esc(formatNum(ht.input_cached_tokens)) +
+      ' tokens.">' + window.__EV.formatTokenCount(ht.input_cached_tokens) + " cached</span>"
+    );
+  }
+  if(ht.input_cache_creation_tokens != null){
+    inputDetails.push(
+      '<span title="Exact token count: ' +
+      esc(formatNum(ht.input_cache_creation_tokens)) + ' tokens.">' +
+      window.__EV.formatTokenCount(ht.input_cache_creation_tokens) +
+      " cache creation</span>"
+    );
+  }
+  if(ht.input_cache_write_tokens != null){
+    inputDetails.push(
+      '<span title="Exact token count: ' + esc(formatNum(ht.input_cache_write_tokens)) +
+      ' tokens.">' + window.__EV.formatTokenCount(ht.input_cache_write_tokens) +
+      " cache write</span>"
+    );
+  }
+  if(ht.input_tokens != null || inputDetails.length){
+    out += '<span>&#8595; ';
+    if(ht.input_tokens != null){
+      out += '<strong title="Exact token count: ' + esc(formatNum(ht.input_tokens)) +
+        ' tokens.">' + window.__EV.formatTokenCount(ht.input_tokens) +
+        '</strong> input tokens';
+    } else {
+      out += 'Input details';
+    }
+    if(inputDetails.length){
+      out += ' <small>(' + inputDetails.join('; ') + ')</small>';
+    }
+    out += '</span>';
+  }
+  if(ht.output_tokens != null || ht.output_reasoning_tokens != null){
+    out += '<span>&#8593; ';
+    if(ht.output_tokens != null){
+      out += '<strong title="Exact token count: ' + esc(formatNum(ht.output_tokens)) +
+        ' tokens.">' + window.__EV.formatTokenCount(ht.output_tokens) +
+        '</strong> output tokens';
+    } else {
+      out += 'Output details';
+    }
+    if(ht.output_reasoning_tokens != null){
+      out += ' <small>(<span title="Exact token count: ' +
+        esc(formatNum(ht.output_reasoning_tokens)) + ' tokens.">' +
+        window.__EV.formatTokenCount(ht.output_reasoning_tokens) +
+        ' reasoning</span>)</small>';
+    }
+    out += '</span>';
+  }
+  if(!usageOnly && ht.turn_count != null) out += '<span><strong>' + formatNum(ht.turn_count) + '</strong> LLM turns</span>';
+  if(!usageOnly && toolCalls != null) out += '<span>&#128295; <strong>' + formatNum(toolCalls) + '</strong> tool calls</span>';
+  if(!usageOnly && totalSteps != null) out += '<span>&#128260; <strong>' + formatNum(totalSteps) + '</strong> steps</span>';
+  if(!usageOnly && toolErrors != null && toolErrors > 0) out += '<span style="color:var(--red)">&#9888; <strong>' + formatNum(toolErrors) + '</strong> errors</span>';
   return out;
+}
+
+function renderCostRunMetrics(run){
+  var sr = (run && run.metrics && run.metrics.self_report) || {};
+  var ht = (run && run.metrics && run.metrics.host_telemetry) || {};
+  var html = "";
+  html += ht.total_duration_seconds != null
+    ? '<span>&#9202; Run duration <strong>' + formatTime(ht.total_duration_seconds) + '</strong></span>'
+    : '<span>&#9202; Run duration <strong>N/A</strong></span>';
+  var toolCalls = ht.total_tool_calls != null ? ht.total_tool_calls : sr.total_tool_calls;
+  html += toolCalls != null
+    ? '<span>&#128295; Tool calls <strong>' + formatNum(toolCalls) + '</strong></span>'
+    : '<span>&#128295; Tool calls <strong>N/A</strong></span>';
+  html += sr.total_steps != null
+    ? '<span>&#128260; Agent turns <strong>' + formatNum(sr.total_steps) + '</strong></span>'
+    : '<span>&#128260; Agent turns <strong>N/A</strong></span>';
+  if(ht.turn_count != null){
+    html += '<span>LLM turns <strong>' + formatNum(ht.turn_count) + '</strong></span>';
+  }
+  if(ht.tool_errors != null && ht.tool_errors > 0){
+    html += '<span style="color:var(--red)">&#9888; <strong>' +
+      formatNum(ht.tool_errors) + '</strong> errors</span>';
+  }
+  return '<div class="variant-card-foot metrics-inline">' + html + '</div>';
+}
+
+function renderCostUsageAgent(agent){
+  var role = agent.role.charAt(0).toUpperCase() + agent.role.slice(1);
+  var html = '<div class="review-cost-agent">';
+  html += '<div class="review-cost-agent-head"><strong>' + esc(role) + '</strong>';
+  if(Array.isArray(agent.models) && agent.models.length){
+    html += '<span class="iter-model-badge">' + esc(agent.models.join(", ")) + '</span>';
+  }
+  html += '</div>';
+  html += '<div class="review-cost-agent-total">';
+  html += agent.total_tokens != null
+    ? '<strong title="Exact token count: ' + esc(formatNum(agent.total_tokens)) +
+      ' tokens.">' + window.__EV.formatTokenCount(agent.total_tokens) + ' tokens</strong>'
+    : '<strong>Token usage N/A</strong>';
+  if(agent.total_api_duration_ms != null){
+    html += ' · &#9202; API ' + formatTime(agent.total_api_duration_ms / 1000);
+  }
+  html += '</div>';
+
+  var details = [
+    ["input_tokens", "&#8595; Input"],
+    ["input_cached_tokens", "&#128279; Cache read"],
+    ["input_cache_creation_tokens", "Cache creation"],
+    ["input_cache_write_tokens", "&#128221; Cache write"],
+    ["output_tokens", "&#8593; Output"],
+    ["output_reasoning_tokens", "&#129504; Reasoning"]
+  ];
+  var creation = agent.input_cache_creation_tokens;
+  var write = agent.input_cache_write_tokens;
+  details.forEach(function(detail){
+    var value = agent[detail[0]];
+    if(value == null) return;
+    if(detail[0] === "input_cache_write_tokens" &&
+       creation != null && creation === write) return;
+    html += '<span class="review-cost-agent-detail" title="Exact token count: ' +
+      esc(formatNum(value)) + ' tokens.">' + detail[1] + ' ' +
+      window.__EV.formatTokenCount(value) + '</span>';
+  });
+  html += '</div>';
+  return html;
+}
+
+function renderReviewCostSection(group, mode, reviewUsageContext){
+  var cols;
+  if(mode === "regression"){
+    cols = [
+      {run:group.baseline, variant:"without_skill", sourceKey:"baseline", cls:"baseline"},
+      {run:group.prev, variant:"previous_skill", sourceKey:"previous", cls:"previous"},
+      {run:group.current, variant:"current_skill", sourceKey:"current", cls:"current"}
+    ];
+  } else {
+    cols = [
+      {run:group.wos, variant:"without_skill", sourceKey:"baseline", cls:"baseline"},
+      {run:group.ws, variant:"current_skill", sourceKey:"current", cls:"current"}
+    ];
+  }
+
+  var evalId = String(group.eval_id != null ? group.eval_id : group.id);
+  if(!/^eval-/.test(evalId)) evalId = "eval-" + evalId;
+  var context = reviewUsageContext || {};
+  var summaries = context.summaries || {};
+  var sources = context.sources || {};
+  var html = '';
+  html += '<div class="sec-heading" id="sec-cost">';
+  html += '<span class="sec-icon">' + NAV_ICONS.cost + '</span>';
+  html += '<h2>Cost</h2></div>';
+  html += '<div class="section-card-body" style="--sc-cols:' + cols.length + '">';
+
+  cols.forEach(function(col){
+    var source = sources[col.sourceKey];
+    var summary = source && summaries[String(source.iteration)];
+    var sourceVariant = source && source.configuration;
+    var agents = (summary && Array.isArray(summary.eval_agents)
+      ? summary.eval_agents
+      : []
+    ).filter(function(agent){
+      return agent &&
+        agent.eval_id === evalId &&
+        agent.variant === sourceVariant &&
+        (agent.role === "executor" || agent.role === "grader");
+    });
+    agents.sort(function(a, b){
+      return a.role === b.role ? 0 : (a.role === "executor" ? -1 : 1);
+    });
+
+    html += '<div class="variant-card ' + col.cls + '">';
+    html += '<div class="variant-card-head">';
+    html += '<span class="variant-pill ' + col.cls + '">' +
+      esc(variantLabelTight(col.variant, mode)) + '</span>';
+    html += '</div>';
+    html += '<div class="variant-card-body">';
+    if(agents.length){
+      agents.forEach(function(agent){ html += renderCostUsageAgent(agent); });
+    } else if(!col.run){
+      html += '<p class="review-cost-empty">No run data available for this variant.</p>';
+    } else {
+      var fallback = renderGenerationMetrics(col.run, true);
+      if(fallback){
+        html += '<div class="metrics-inline">' + fallback + '</div>';
+      } else {
+        html += '<p class="review-cost-empty">No attributable per-eval usage is available.</p>';
+      }
+    }
+    html += '</div>';
+    if(col.run || agents.length){
+      html += renderCostRunMetrics(col.run);
+    }
+    html += '</div>';
+  });
+  html += '</div>';
+  return html;
 }
 
 /* ─────────────────────────────────────────────────────────────────────────

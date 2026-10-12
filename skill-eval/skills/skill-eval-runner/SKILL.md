@@ -8,7 +8,7 @@ user-invocable: true
 license: SEE LICENSE IN LICENSE
 metadata:
   author: Cyril Colombel
-  version: "1.0.0"
+  version: "1.1.0"
 ---
 
 # Skill Eval Runner
@@ -119,26 +119,31 @@ Save your metrics to: `{workspace}/eval-{id}-{name}/without_skill/outputs/metric
 
 ```bash
 python skills/skill-eval-runner/scripts/finalize_metrics.py \
-  evals/skills/{skill_name}/workspace/iteration-{N} \
-  --session-log "{{VSCODE_TARGET_SESSION_LOG}}"
+  evals/skills/{skill_name}/workspace/iteration-{N}
 ```
 
-**CRITICAL — session log path:** `{{VSCODE_TARGET_SESSION_LOG}}` is a **prompt-template variable**, not a shell environment variable. You MUST substitute its literal value (visible at the top of your system prompt) directly into the command before execution. Do **not** write `$VSCODE_TARGET_SESSION_LOG` — the shell will expand that to an empty string and the finalizer will find zero debug logs, silently degrading every variant to `wall_clock` source with no token/turn/tool counts. If your system prompt does not expose this variable, omit `--session-log` entirely and accept the degraded result.
+The finalizer has optional host-specific telemetry integrations. Use only the option for the host running this evaluation.
+
+**When the host is VS Code Copilot Chat:** If the system prompt exposes `{{VSCODE_TARGET_SESSION_LOG}}`, you may pass it as `--session-log PATH`. This is a **prompt-template variable**, not a shell environment variable: substitute its literal value before execution. Do not write `$VSCODE_TARGET_SESSION_LOG` unless it is actually set in the shell. If no VS Code session-log path is exposed, omit `--session-log`; this does not disable notification telemetry or another explicitly configured host source.
 
 The finalizer:
 
 - Walks every `eval-*/current_skill` and `eval-*/without_skill` directory in the iteration
 - Reads the executor's `outputs/metrics.json` (containing `self_report` + `user_notes`) and leaves those layers untouched
 - Merges `outputs/notification.json` (parent-written sidecar, if present) into a `notification` block and deletes the sidecar on success
-- Adds a `host_telemetry` block with timing + tokens + turn count + log-derived tool calls/errors + model. Its `source` is one of `debug_log` (VS Code `runSubagent-*.jsonl`), `notification` (sidecar only), or `wall_clock` (last-resort fallback from `eval_metadata.json.prepared_at` + `response.md` mtime)
+- Adds a `host_telemetry` block with timing + tokens + turn count + log-derived tool calls/errors + model. Source precedence is `debug_log` (VS Code `runSubagent-*.jsonl`) > `notification` (sidecar) > `wall_clock` (last-resort fallback from `eval_metadata.json.prepared_at` + `response.md` mtime)
 - Stamps a top-level `metrics_source` = `debug_log` when `host_telemetry` has log-derived tool counts, else `self_report`
 - Deletes any legacy `execution.json` / `.notification.json` it finds from prior iteration layouts
 
-If the parent process is VS Code, the finalizer looks at `$VSCODE_TARGET_SESSION_LOG` as a real shell env var if set; otherwise pass `--session-log PATH` explicitly (see the template-variable note above).
+**Legacy session summaries.** Existing or caller-provided `session_usage.json` remains readable for historical iterations. The finalizer no longer extracts Copilot CLI token/model usage from debug logs or creates this sidecar. A legacy session total may be divided by the distinct eval count only as a clearly labeled Total Framework display average in Cost Overhead; it is not measured executor usage and must not produce a full-framework delta against a partial snapshot.
 
-**Parent responsibility — `outputs/notification.json` (mandatory attempt).** Immediately after each executor subagent returns, you (the parent) MUST inspect the Task return value. If it exposes timing or usage fields, write `{variant_dir}/outputs/notification.json` capturing them verbatim: `spawned_at` and `returned_at` (ISO 8601 UTC, parent wall-clock) at minimum, plus `total_tokens`, `duration_ms`, and `status` when the host surfaces them. If the Task return exposes nothing beyond the response text, skip the file — the finalizer will fall back to `debug_log` or `wall_clock`. What you MUST NOT do is silently skip the inspection step: the whole point of the notification source is to capture host telemetry the debug log may lack. One-line write per subagent, no computation. The sidecar is visible (no dot prefix) so you can inspect it during debugging; the finalizer consumes then deletes it.
+Copilot CLI debug logging may still be enabled manually for unrelated troubleshooting, but Skill Eval does not require or parse those logs. They can contain full prompts and private inputs; keep them private and never commit or upload them.
 
-The executor's `self_report` covers what it can measure itself (`tool_calls`, `total_tool_calls`, `total_steps`, `files_created`, `output_chars`). The finalizer's `host_telemetry` layers authoritative log-derived counts on top when a debug log is available; `self_report` stays intact as the self-assessment. Downstream consumers prefer `host_telemetry` numbers when present and fall back to `self_report` otherwise.
+**Other compatible hosts:** Inspect executor task results and write `outputs/notification.json` when the host exposes telemetry. If it exposes neither a readable host log nor token/duration fields in task results, the finalizer's `wall_clock` timing fallback is expected; token and model fields remain unavailable.
+
+**Parent responsibility — `outputs/notification.json` (mandatory attempt).** Immediately after each executor subagent returns, you (the parent) MUST inspect the Task return value. If it exposes timing or usage fields, write `{variant_dir}/outputs/notification.json` capturing them verbatim: `spawned_at` and `returned_at` (ISO 8601 UTC, parent wall-clock) at minimum, plus `total_tokens`, `duration_ms`, and `status` when the host surfaces them. If the Task return exposes nothing beyond the response text, skip the file — the finalizer will fall back to `debug_log`, `notification`, or `wall_clock`. What you MUST NOT do is silently skip the inspection step: the whole point of the notification source is to capture host telemetry the debug log may lack. One-line write per subagent, no computation. The sidecar is visible (no dot prefix) so you can inspect it during debugging; the finalizer consumes then deletes it.
+
+The executor's `self_report` covers what it can measure itself (`tool_calls`, `total_tool_calls`, `total_steps`, `files_created`, `output_chars`). The finalizer's `host_telemetry` layers authoritative VS Code log-derived counts on top when that host log is available; `self_report` stays intact as the self-assessment. Downstream consumers prefer `host_telemetry` numbers when present and fall back to `self_report` otherwise.
 
 ### user_notes — the skill-quality feedback channel
 
@@ -157,7 +162,7 @@ Executor caps each skill_feedback bucket at 5 entries (highest impact first). Th
 - [ ] `finalize_metrics.py` ran successfully — every variant's `outputs/metrics.json` now also has `host_telemetry` and a top-level `metrics_source` tag
 - [ ] No `outputs/notification.json` sidecars remain (consumed and deleted by the finalizer)
 - [ ] No `execution.json` or `.notification.json` files remain anywhere in the iteration (legacy artifacts)
-- [ ] No variant still has `host_telemetry.source: "wall_clock"` as its only signal unless you know the subagent host exposes no usage telemetry
+- [ ] No variant still has `host_telemetry.source: "wall_clock"` as its only signal unless the active host exposes no usable per-run log or task-result telemetry, or its host-specific log was not provided
 
 ---
 
@@ -268,6 +273,8 @@ This opens a single unified report with 3 pages:
 - **Review** — eval-by-eval output viewer with prompt, grading, comparison, and feedback
 
 An iteration timeline in the top bar lets users navigate between iterations. Selecting an older iteration truncates the Progression view to that point in time and shows that iteration's Benchmark and Review data.
+
+**Optional host-provided usage file:** `generate_review.py` accepts `--usage-output-file PATH` only for static generation with `--static OUTPUT.html`. Copilot CLI creates its final usage file only after the CLI process exits; this skill's agent does not launch or relaunch Copilot and must not try to use a file that is not yet available. Host/CI owns the CLI option and any post-exit static report regeneration; see the [host/CI integration instructions](../../docs/skills/skill-eval-runner/README.md).
 
 ### Present summary
 

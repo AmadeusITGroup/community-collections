@@ -38,6 +38,33 @@ The skill-eval-runner follows a 4-phase pipeline:
 | **GRADE** | Grader (LLM-as-judge) scores each response against expectations, comparator does blind A/B | `grading.json`, `comparison.json`, `benchmark.json` |
 | **REPORT** | Aggregates results, launches eval-viewer, presents summary | `benchmark.md`, eval-viewer HTML |
 
+## Host Telemetry
+
+The canonical finalizer supports optional VS Code debug logs and parent notification sidecars. Select only the telemetry options for the host actually running the evaluation; Copilot CLI-specific flags are not generic runner requirements.
+
+### Copilot CLI post-exit usage (host/CI only)
+
+The host/CI wrapper—not the skill agent—must request final usage when it launches Copilot CLI. The usage file is complete only after the CLI exits. Set `COPILOT_USAGE_FILE` to a writable private path; use `$RUNNER_TEMP` only when the host defines it. Run these commands from the `skill-eval/` directory, and give concurrent jobs isolated workspaces:
+
+```bash
+WORKSPACE="evals/skills/$SKILL/workspace"
+
+copilot --usage-output-file "$COPILOT_USAGE_FILE" ...
+
+# Run only after the Copilot CLI process exits.
+python3 skills/skill-eval-runner/eval-viewer/generate_review.py \
+  "$WORKSPACE" \
+  --skill-name "$SKILL" \
+  --usage-output-file "$COPILOT_USAGE_FILE" \
+  --static "$WORKSPACE/report.html"
+```
+
+Omitting `--iteration` lets the generator select the latest iteration in that workspace. The deterministic post-exit step writes a sanitized `usage_summary.json` without another model call or changes to `metrics.json` or `benchmark.json`. Session totals and per-agent details overlap and must not be added together. Agent usage is attached to a variant only when attribution is unique; otherwise it remains unattributed. A session average is only a labeled display fallback, not measured per-run usage.
+
+VS Code's `--session-log` is only for runs hosted by VS Code Copilot Chat. Other compatible hosts should use only their own available task-result notification or log integration. The report shows per-run model and token details when present, `N/A` for unavailable run tokens, and session models in Pass Rate Trend, Health Signals, and Resource Usage when per-run model attribution is unavailable. Benchmark Cost Overhead separates executor-only, all eval-linked, and whole-session averages; token breakdowns and unlinked support-agent totals are collapsed by default. Token counts use compact notation with exact values on hover, and coverage is shown only when incomplete. The unlinked-agent table reuses the comparison columns and shows deltas/ratios only when source values are available; its iteration totals are already included in whole-session usage and must not be added again. Legacy caller-provided `session_usage.json` remains supported for historical data.
+
+Routine report generation does not need Copilot CLI debug logs. If they are enabled for unrelated troubleshooting, they may contain complete request bodies and private inputs; keep them private and never commit or upload them.
+
 ## When To Use
 
 - You updated a skill and want to verify it still passes its eval suite

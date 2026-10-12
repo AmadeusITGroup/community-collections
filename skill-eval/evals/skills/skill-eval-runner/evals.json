@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0.0",
   "skill_name": "skill-eval-runner",
-  "skill_version": "1.0.0",
+  "skill_version": "1.1.0",
   "description": "Behavioral eval suite for skill-eval-runner. The skill's product is orchestration artifacts (sub-agent dispatch plans, executor/grader/comparator prompts, the notification sidecar) plus gate decisions and result diagnosis, so each eval hands the agent concrete material (the staged release-note-writer fixture skill, or a pre-populated fixture workspace) and asks it to PRODUCE or DIAGNOSE an artifact — never to quiz it on documentation. Covers the two 'When NOT to use' boundaries (stop when no evals.json; defer generation to skill-eval-generator), the baseline EXECUTE dispatch (2xN executors, per-variant sandboxes, without_skill isolation, files staging, parallel launch), the iteration-2 regression dispatch (reuse without_skill, current-vs-previous pairing), composing a grader prompt with grading.json placed as a sibling of outputs/, the blind A/B dispatch (assign_ab -> blind comparator -> resolve_comparisons), writing the notification.json sidecar without computing host telemetry, diagnosing a misplaced-grading.json 0% pass rate from a real workspace, and presenting the PHASE 4 report summary from a benchmark.json.",
   "evals": [
     {

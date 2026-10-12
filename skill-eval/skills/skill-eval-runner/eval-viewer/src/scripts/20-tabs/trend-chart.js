@@ -10,7 +10,7 @@ function buildTrendChart(iters){
   if(iters.length < 1) return '<p style="color:var(--text-muted);text-align:center">No data</p>';
 
   /* Bottom padding leaves room for two-line x-axis labels (Iter N + model
-     name) when models differ across iterations. */
+     name) whenever model metadata is available. */
   var W = 640, H = 270, PAD_L = 50, PAD_R = 60, PAD_T = 20, PAD_B = 50;
   var plotW = W - PAD_L - PAD_R;
   var plotH = H - PAD_T - PAD_B;
@@ -38,24 +38,24 @@ function buildTrendChart(iters){
     svg += '<text x="' + (PAD_L - 8) + '" y="' + (gy + 4) + '" text-anchor="end" fill="var(--chart-text)" font-size="10">' + (g * 25) + '%</text>';
   }
 
-  /* X-axis labels. Append the (short) model name on a second line when models
-     differ between iterations — that's when the model is a confound for the
-     pass-rate trend the reader is interpreting. Same model across all iters →
-     model is noise, suppress it. */
+  /* X-axis labels. Show each known model, including a session-level fallback
+     when per-run model attribution is unavailable. */
   var EV = window.__EV || {};
   var iterModels = iters.map(function(it){
     return EV.iterationModel ? EV.iterationModel(it.iteration, "current_skill") : null;
   });
-  var distinctModels = {};
-  iterModels.forEach(function(m){ if(m) distinctModels[m.label] = true; });
-  var showModelOnAxis = Object.keys(distinctModels).length > 1;
+  var showModelOnAxis = iterModels.some(function(model){ return model != null; });
 
   iters.forEach(function(it, i){
     var x = iters.length === 1 ? PAD_L + plotW / 2 : PAD_L + (i / (iters.length - 1)) * plotW;
     svg += '<text x="' + x + '" y="' + (H - 22) + '" text-anchor="middle" fill="var(--chart-text)" font-size="10">Iter ' + it.iteration + '</text>';
     if(showModelOnAxis && iterModels[i]){
       var m = iterModels[i];
-      svg += '<text x="' + x + '" y="' + (H - 8) + '" text-anchor="middle" fill="var(--text-light)" font-size="9" font-style="italic">' + m.label + '</text>';
+      var modelTitle = m.source === "session"
+        ? "Session-level model(s), not attributed to individual evals: " + m.models.join(", ")
+        : (m.mixed ? "Mixed current_skill models: " + m.models.join(", ")
+          : "Per-run current_skill model: " + m.label);
+      svg += '<text x="' + x + '" y="' + (H - 8) + '" text-anchor="middle" fill="var(--text-light)" font-size="9" font-style="italic" title="' + esc(modelTitle) + '">' + esc(m.label) + '</text>';
     }
   });
 

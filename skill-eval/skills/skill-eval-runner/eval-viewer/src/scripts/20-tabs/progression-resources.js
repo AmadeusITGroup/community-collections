@@ -10,11 +10,12 @@
   /* Resource cells use em-dash for nulls so dense tables stay clean. */
   function fmtTime(v){ return v == null ? "—" : parseFloat(v).toFixed(1) + "s"; }
   function fmtNum(v){  return v == null ? "—" : Math.round(parseFloat(v)).toLocaleString(); }
+  function fmtTokens(v){ return v == null ? "N/A" : EV.formatTokenCount(v); }
   function fmtDec(v){  return v == null ? "—" : Number(v).toFixed(1); }
 
   var METRICS = [
     {label:"Avg Time",       key:"time_seconds", fmt:fmtTime, deltaFmt: function(d){ return (d >= 0 ? "+" : "") + fmtDec(d) + "s"; }},
-    {label:"Avg Tokens",     key:"tokens",       fmt:fmtNum,  deltaFmt: function(d){ return (d >= 0 ? "+" : "") + Math.round(d).toLocaleString(); }},
+    {label:"Avg Tokens",     key:"tokens",       fmt:fmtTokens, deltaFmt: function(d){ return (d >= 0 ? "+" : "") + EV.formatTokenCount(d); }},
     {label:"Avg Tool Calls", key:"tool_calls",   fmt:fmtDec,  deltaFmt: function(d){ return (d >= 0 ? "+" : "") + fmtDec(d); }},
     {label:"Avg Agent Turns", key:"steps",       fmt:fmtDec,  deltaFmt: function(d){ return (d >= 0 ? "+" : "") + fmtDec(d); }}
   ];
@@ -28,6 +29,31 @@
       base: (isRegression && rs.previous_skill) ? rs.previous_skill : (rs.without_skill || {}),
       modeLabel: isRegression ? "Iter " + iter.iteration + " (regression)" : "Iter " + iter.iteration + " (baseline)"
     };
+  }
+
+  function currentMetricFor(iter, variants, metric){
+    var value = mean(variants.ws, metric.key);
+    var session = null;
+    if(metric.key === "tokens" && value == null){
+      session = EV.iterationSessionUsageAverage(iter.iteration, "total_tokens");
+      if(session) value = session.value;
+    }
+    return { value: value, session: session };
+  }
+
+  function previousMetricFor(iter, variants, metric){
+    var value = mean(variants.base, metric.key);
+    var session = null;
+    if(metric.key === "tokens" && variants.isRegression && value == null){
+      var previousIteration = Number.isInteger(iter.previous_iteration)
+        ? iter.previous_iteration
+        : iter.iteration - 1;
+      if(Number.isInteger(previousIteration) && previousIteration > 0){
+        session = EV.iterationSessionUsageAverage(previousIteration, "total_tokens");
+        if(session) value = session.value;
+      }
+    }
+    return { value: value, session: session };
   }
 
   function sparkline(points, color){
@@ -74,7 +100,7 @@
       METRICS.forEach(function(m){
         var points = validIters.map(function(it){
           var v = variantsFor(it);
-          var y = mean(v.ws, m.key);
+          var y = currentMetricFor(it, v, m).value;
           return y == null ? null : { x: it.iteration, y: y };
         }).filter(function(p){ return p != null; });
         if(points.length < 2) return;
@@ -99,12 +125,18 @@
       var v = variantsFor(it);
       var cls = idx > 0 ? ' class="group-boundary"' : '';
       var model = EV.iterationModel ? EV.iterationModel(it.iteration, "current_skill") : null;
+      var modelTitle = model && model.source === "session"
+        ? "Session-level model(s), not attributed to individual evals: " + model.models.join(", ")
+        : (model ? (model.mixed
+          ? "Mixed current_skill models: " + model.models.join(", ")
+          : "Per-run current_skill model: " + model.label) : "");
       var modelBadge = model
         ? '<div class="iter-model-badge' + (model.mixed ? ' mixed' : '') +
-          '" title="current_skill model' + (model.mixed ? "s: " + model.models.join(", ") : "") + '">' +
-          model.label + '</div>'
+          '" title="' + esc(modelTitle) + '">' +
+          esc(model.label) + '</div>'
         : '';
-      html += '<th colspan="3"' + cls + ' title="' + v.modeLabel + '">Iter ' + it.iteration + modelBadge + '</th>';
+      html += '<th colspan="3"' + cls + ' title="' + v.modeLabel + '">Iter ' +
+        it.iteration + modelBadge + '</th>';
     });
     html += '</tr>';
     /* Sub-header row. */
@@ -121,23 +153,61 @@
       /* Skip rows where no iter has any value — keeps the table lean. */
       var any = validIters.some(function(it){
         var v = variantsFor(it);
-        return mean(v.ws, m.key) != null || mean(v.base, m.key) != null;
+        return currentMetricFor(it, v, m).value != null ||
+          previousMetricFor(it, v, m).value != null ||
+          (m.key === "tokens" && (
+            (v.ws && Object.prototype.hasOwnProperty.call(v.ws, "tokens")) ||
+            (v.base && Object.prototype.hasOwnProperty.call(v.base, "tokens"))
+          ));
       });
       if(!any) return;
       html += '<tr><td>' + m.label + '</td>';
       validIters.forEach(function(it, idx){
         var v = variantsFor(it);
-        var bVal = mean(v.base, m.key);
-        var cVal = mean(v.ws, m.key);
-        var d = (bVal != null && cVal != null) ? cVal - bVal : null;
+        var baseMetric = previousMetricFor(it, v, m);
+        var currentMetric = currentMetricFor(it, v, m);
+        var bVal = baseMetric.value;
+        var cVal = currentMetric.value;
+        var bSession = baseMetric.session;
+        var cSession = currentMetric.session;
+        var d = (bVal != null && cVal != null &&
+          !(bSession && bSession.partial) &&
+          !(cSession && cSession.partial)) ? cVal - bVal : null;
         var bcls = idx > 0 ? ' class="group-boundary"' : '';
-        html += '<td' + bcls + '>' + m.fmt(bVal) + '</td>';
-        html += '<td>' + m.fmt(cVal) + '</td>';
+        var baselineTitle = "";
+        if(m.key === "tokens" && bVal != null){
+          var baseTitle = bSession
+            ? EV.sessionUsageAverageTitle(bSession) + " "
+            : "";
+          baseTitle += "Exact displayed average: " + formatNum(bVal) + " tokens.";
+          baselineTitle = ' title="' + esc(baseTitle) + '"';
+        }
+        html += '<td' + bcls + baselineTitle + '>' + m.fmt(bVal) + '</td>';
+        var sessionTitle = "";
+        if(m.key === "tokens" && cVal != null){
+          var title = cSession
+            ? EV.sessionUsageAverageTitle(cSession) + " "
+            : "";
+          title += "Exact displayed average: " + formatNum(cVal) + " tokens.";
+          sessionTitle = ' title="' + esc(title) + '"';
+        }
+        html += '<td' + sessionTitle + '>' + m.fmt(cVal) + '</td>';
         var chipCls = "flat";
         if(d != null && d !== 0){
           chipCls = d < 0 ? "pos" : "cost";
         }
-        html += '<td class="cell-delta">' + (d == null ? "—" : ('<span class="delta-chip ' + chipCls + '">' + m.deltaFmt(d) + '</span>')) + '</td>';
+        var deltaTitle = "";
+        if(m.key === "tokens" && d != null){
+          var deltaDescription = bSession || cSession
+            ? "One or both values use display-only session averages, which " +
+              "include shared framework usage and are not per-run measurements. "
+            : "";
+          deltaDescription += "Exact token difference: " + formatNum(d) + " tokens.";
+          deltaTitle = ' title="' + esc(deltaDescription) + '"';
+        }
+        html += '<td class="cell-delta"' + deltaTitle + '>' +
+          (d == null ? "—" : ('<span class="delta-chip ' + chipCls + '">' + m.deltaFmt(d) + '</span>')) +
+          '</td>';
       });
       html += '</tr>';
     });

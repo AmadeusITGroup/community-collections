@@ -25,7 +25,7 @@ items:
     kind: agent
   - path: skill-eval/agents/skill-eval-analyzer.agent.md
     kind: agent
-version: "1.0.0"
+version: "1.1.0"
 author: "Cyril Colombel"
 readme:
   path: skill-eval/README.md

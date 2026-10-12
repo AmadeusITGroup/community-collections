@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0.0",
   "skill_name": "skill-eval-generator",
-  "skill_version": "1.0.0",
+  "skill_version": "1.1.0",
   "description": "Evaluation test cases for skill-eval-generator covering triggering vs. deferral to the runner, refusal when the target skill is missing, browse-before-design grounding, FULL-mode fresh generation for the commit-message-writer fixture skill, INCREMENTAL merge that preserves human-refined content, [auto]-prefix and schema field-name discipline, generated-set coverage (negatives plus difficulty gradient), and eval-directory layout resolution.",
   "evals": [
     {

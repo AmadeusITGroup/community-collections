@@ -54,6 +54,27 @@
 .variant-card .out-content{min-width:0}
 .variant-card .out-content img{max-width:100%;border-radius:var(--radius-sm)}
 
+/* Per-variant telemetry lives in the Cost section, not the Output preview. */
+.review-cost-agent{
+  margin-bottom:10px;padding-bottom:10px;
+  border-bottom:1px solid var(--border-light);
+}
+.review-cost-agent:last-child{margin-bottom:0;padding-bottom:0;border-bottom:0}
+.review-cost-agent-head{
+  display:flex;flex-wrap:wrap;align-items:center;gap:8px;
+  margin-bottom:4px;
+}
+.review-cost-agent-total{
+  margin-bottom:4px;font-size:0.8rem;font-variant-numeric:tabular-nums;
+}
+.review-cost-agent-detail{
+  display:inline-block;margin:2px 10px 2px 0;
+  color:var(--text-muted);font-size:0.74rem;font-variant-numeric:tabular-nums;
+}
+.review-cost-empty{
+  margin:0;color:var(--text-muted);font-size:0.82rem;font-style:italic;
+}
+
 /* Strengths & weaknesses list — 2-col grid (icon + text). */
 .variant-card .sw-list{
   display:flex;flex-direction:column;gap:4px;

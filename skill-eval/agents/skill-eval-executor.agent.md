@@ -72,6 +72,7 @@ Everything you can measure yourself. After you finish writing `response.md`:
 - `total_steps`: number of assistant **turns** (one per assistant message). A single turn that issues several parallel tool calls counts as one turn — so `total_steps ≤ total_tool_calls` is normal.
 - `files_created`: list the filenames (not paths) present in your `outputs/` directory — at minimum `response.md`, plus any other file the prompt asked you to write.
 - `output_chars`: the byte length of the `response.md` you just wrote.
+- Report `0` only when you observed and counted zero. If a measurement is unavailable or cannot be counted reliably, omit that field rather than substituting zero.
 
 These are your own numbers. `finalize_metrics.py` may later add a `host_telemetry` block with log-derived counts that shadow yours when a debug log is available, but your `self_report` stays intact as the executor's self-assessment.
 

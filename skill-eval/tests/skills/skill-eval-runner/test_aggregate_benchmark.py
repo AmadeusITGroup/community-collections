@@ -15,6 +15,7 @@ test_eval_paths.py.
 
 from __future__ import annotations
 
+import json
 import sys
 import unittest
 from pathlib import Path
@@ -27,7 +28,7 @@ import aggregate_benchmark as ab  # noqa: E402
 
 
 def _run(eval_id, config, pass_rate, time_s=10.0, tokens=1000,
-         tool_calls=None, steps=None, name="eval"):
+         tool_calls=None, steps=None, name="eval", source=None, model=None):
     """Build a minimal run dict in the shape build_runs() emits."""
     result = {
         "pass_rate": pass_rate,
@@ -37,6 +38,10 @@ def _run(eval_id, config, pass_rate, time_s=10.0, tokens=1000,
         "time_seconds": time_s,
         "tokens": tokens,
     }
+    if source is not None:
+        result["source"] = source
+    if model is not None:
+        result["model"] = model
     if tool_calls is not None:
         result["total_tool_calls"] = tool_calls
     if steps is not None:
@@ -78,6 +83,20 @@ class CalculateStatsTests(unittest.TestCase):
         self.assertEqual(stats["stddev"], 0.7071)
 
 
+class CalculateNullableStatsTests(unittest.TestCase):
+    def test_empty_returns_null_stats(self) -> None:
+        self.assertEqual(
+            ab.calculate_nullable_stats([]),
+            {"mean": None, "stddev": None, "min": None, "max": None},
+        )
+
+    def test_reported_zero_is_a_real_sample(self) -> None:
+        self.assertEqual(
+            ab.calculate_nullable_stats([0.0]),
+            {"mean": 0.0, "stddev": 0.0, "min": 0.0, "max": 0.0},
+        )
+
+
 class SeverityFromGapTests(unittest.TestCase):
     def test_blocking_threshold(self) -> None:
         self.assertEqual(ab._severity_from_gap(0.5), "blocking")
@@ -97,6 +116,56 @@ class SeverityFromGapTests(unittest.TestCase):
 
 
 class BuildRunSummaryTests(unittest.TestCase):
+    def test_missing_tokens_are_excluded_from_averages_and_deltas(self) -> None:
+        runs = [
+            _run(1, "current_skill", 1.0, tokens=100),
+            _run(2, "current_skill", 0.5, tokens=None),
+            _run(1, "without_skill", 0.5, tokens=None),
+        ]
+
+        summary = ab.build_run_summary(runs)
+
+        self.assertEqual(summary["current_skill"]["tokens"]["mean"], 100.0)
+        self.assertEqual(
+            summary["without_skill"]["tokens"],
+            {"mean": None, "stddev": None, "min": None, "max": None},
+        )
+        self.assertIsNone(summary["delta"]["tokens"])
+
+    def test_reported_zero_tokens_remain_in_the_sample(self) -> None:
+        runs = [
+            _run(1, "current_skill", 1.0, tokens=0, source="debug_log"),
+            _run(1, "without_skill", 1.0, tokens=5, source="notification"),
+        ]
+
+        summary = ab.build_run_summary(runs)
+
+        self.assertEqual(summary["current_skill"]["tokens"]["mean"], 0.0)
+        self.assertEqual(summary["delta"]["tokens"], "-5.0")
+
+    def test_legacy_wall_clock_zero_is_excluded_but_modelled_zero_is_sampled(self) -> None:
+        runs = [
+            _run(1, "current_skill", 1.0, tokens=0, source="wall_clock"),
+            _run(2, "current_skill", 1.0, tokens=0, source="debug_log"),
+            _run(3, "current_skill", 1.0, tokens=100, source="notification"),
+            _run(1, "without_skill", 0.5, tokens=None),
+        ]
+
+        summary = ab.build_run_summary(runs)
+
+        self.assertEqual(summary["current_skill"]["tokens"]["mean"], 50.0)
+
+    def test_models_are_sorted_and_deduplicated(self) -> None:
+        runs = [
+            _run(1, "current_skill", 1.0, model="gpt-5.5,gpt-4.1"),
+            _run(2, "without_skill", 1.0, model="gpt-4.1"),
+            _run(3, "previous_skill", 1.0, model="claude-sonnet-5"),
+        ]
+
+        summary = ab.build_run_summary(runs)
+
+        self.assertEqual(summary["models"], ["claude-sonnet-5", "gpt-4.1", "gpt-5.5"])
+
     def test_delta_is_current_minus_without(self) -> None:
         runs = [
             _run(1, "current_skill", 0.8),
@@ -135,6 +204,72 @@ class BuildRunSummaryTests(unittest.TestCase):
         summary = ab.build_run_summary(runs)
         self.assertNotIn("tool_calls", summary["current_skill"])
         self.assertNotIn("steps", summary["current_skill"])
+
+
+class BuildRegressionDeltaTests(unittest.TestCase):
+    def setUp(self) -> None:
+        import tempfile
+
+        self._tmp = tempfile.TemporaryDirectory()
+        self.previous_dir = Path(self._tmp.name) / "iteration-1"
+        self.previous_dir.mkdir()
+
+    def tearDown(self) -> None:
+        self._tmp.cleanup()
+
+    def _write_previous_benchmark(self, runs: list[dict]) -> None:
+        (self.previous_dir / "benchmark.json").write_text(
+            json.dumps(
+                {
+                    "run_summary": {
+                        "current_skill": {
+                            "pass_rate": {"mean": 0.5},
+                            "time_seconds": {"mean": 10.0},
+                            "tokens": {"mean": 0.0},
+                        }
+                    },
+                    "runs": runs,
+                }
+            ),
+            encoding="utf-8",
+        )
+
+    def test_regression_token_delta_is_null_when_previous_has_only_wall_clock_zero(self) -> None:
+        self._write_previous_benchmark([
+            _run(1, "current_skill", 0.5, tokens=0, source="wall_clock"),
+        ])
+        current = [
+            _run(1, "current_skill", 1.0, tokens=500, source="notification"),
+        ]
+
+        delta = ab.build_regression_delta(current, self.previous_dir)
+
+        self.assertIsNone(delta["tokens"])
+
+    def test_regression_delta_keeps_a_measured_zero_and_ignores_wall_clock_zero(self) -> None:
+        self._write_previous_benchmark([
+            _run(1, "current_skill", 0.5, tokens=0, source="wall_clock"),
+            _run(2, "current_skill", 0.5, tokens=0, source="debug_log"),
+        ])
+        current = [
+            _run(1, "current_skill", 1.0, tokens=10, source="notification"),
+        ]
+
+        delta = ab.build_regression_delta(current, self.previous_dir)
+
+        self.assertEqual(delta["tokens"], "+10.0")
+
+    def test_regression_token_delta_is_null_when_current_has_no_samples(self) -> None:
+        self._write_previous_benchmark([
+            _run(1, "current_skill", 0.5, tokens=100, source="debug_log"),
+        ])
+        current = [
+            _run(1, "current_skill", 1.0, tokens=None, source="wall_clock"),
+        ]
+
+        delta = ab.build_regression_delta(current, self.previous_dir)
+
+        self.assertIsNone(delta["tokens"])
 
 
 class BuildComparisonsTests(unittest.TestCase):
@@ -410,6 +545,21 @@ class GenerateMarkdownTests(unittest.TestCase):
         self.assertIn("## Summary", md)
         self.assertIn("## Comparisons", md)
         self.assertIn("pass_rate", md)
+
+    def test_missing_token_stats_and_run_values_render_as_na(self) -> None:
+        current = _run(1, "current_skill", 1.0, tokens=None, name="e1")
+        without = _run(1, "without_skill", 0.4, tokens=None, name="e1")
+        benchmark = self._minimal_benchmark()
+        benchmark["runs"] = [current]
+        benchmark["run_summary"] = ab.build_run_summary([current, without])
+
+        markdown = ab.generate_markdown(benchmark)
+
+        self.assertIn("| tokens | N/A | N/A | N/A |", markdown)
+        self.assertIn(
+            "| e1 | current_skill | 1.00 | 5 | 0 | 10.0 | N/A |",
+            markdown,
+        )
 
     def test_notes_section_rendered_when_present(self) -> None:
         bm = self._minimal_benchmark()
