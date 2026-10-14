@@ -54,7 +54,7 @@ function renderBenchmarkPage(){
   var EV = window.__EV;
   var html = "";
   html += EV.buildBenchmarkHeadlineCard(src);
-  html += EV.buildBenchmarkCostCard(src);
+  html += EV.buildBenchmarkCostCard(src, state.activeIteration);
   html += EV.buildBenchmarkQualityScoresCard(src);
 
   if((src.contradictions || []).length){

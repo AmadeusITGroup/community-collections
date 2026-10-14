@@ -19,11 +19,14 @@ Stdlib unittest only.
 
 from __future__ import annotations
 
+import contextlib
+import io
 import json
 import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 _REPO_ROOT = Path(__file__).resolve().parents[3]
 _SCRIPTS_DIR = _REPO_ROOT / "skills" / "skill-eval-runner" / "scripts"
@@ -86,6 +89,10 @@ class BuildRunsTests(unittest.TestCase):
             ed, "current_skill",
             self_report={"total_tool_calls": 12, "total_steps": 5, "output_chars": 900},
             host_telemetry={"total_duration_seconds": 42.5, "total_tokens": 3800,
+                            "input_tokens": 3000, "input_cached_tokens": 1200,
+                            "input_cache_creation_tokens": 100,
+                            "input_cache_write_tokens": 80, "output_tokens": 800,
+                            "output_reasoning_tokens": 250,
                             "model": "m", "tool_errors": 0, "source": "debug_log"},
             metrics_source="debug_log",
         )
@@ -97,8 +104,36 @@ class BuildRunsTests(unittest.TestCase):
         self.assertEqual(result["passed"], 4)
         self.assertEqual(result["time_seconds"], 42.5)
         self.assertEqual(result["tokens"], 3800)
+        self.assertEqual(result["input_tokens"], 3000)
+        self.assertEqual(result["input_cached_tokens"], 1200)
+        self.assertEqual(result["input_cache_creation_tokens"], 100)
+        self.assertEqual(result["input_cache_write_tokens"], 80)
+        self.assertEqual(result["output_tokens"], 800)
+        self.assertEqual(result["output_reasoning_tokens"], 250)
         self.assertEqual(result["total_tool_calls"], 12)  # from self_report
         self.assertEqual(result["metrics_source"], "debug_log")
+
+    def test_missing_run_tokens_are_null_but_measured_zero_is_preserved(self) -> None:
+        ed = self.b.eval_dir(1, "alpha")
+        self.b.metadata(ed, id=1, name="alpha", eval_mode="baseline")
+        self.b.grading(ed, "current_skill", passed=5, total=5)
+        self.b.grading(ed, "without_skill", passed=4, total=5)
+        self.b.metrics(
+            ed,
+            "current_skill",
+            host_telemetry={"total_tokens": 0, "source": "wall_clock"},
+        )
+        self.b.metrics(
+            ed,
+            "without_skill",
+            host_telemetry={"total_tokens": 0, "source": "notification"},
+        )
+
+        runs = ab.build_runs(ab.discover_eval_dirs(self.iter_dir))
+        results = {run["configuration"]: run["result"] for run in runs}
+
+        self.assertIsNone(results["current_skill"]["tokens"])
+        self.assertEqual(results["without_skill"]["tokens"], 0)
 
     def test_host_telemetry_tool_calls_preferred(self) -> None:
         ed = self.b.eval_dir(1, "alpha")
@@ -176,6 +211,118 @@ class MisplacedGradingTests(unittest.TestCase):
         self.assertEqual(len(moved), 1)
         self.assertTrue((ed / "current_skill" / "grading.json").exists())
         self.assertFalse((ed / "current_skill" / "outputs" / "grading.json").exists())
+
+
+class SessionUsageTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.iter_dir = Path(self._tmp.name) / "iteration-1"
+        self.iter_dir.mkdir(parents=True)
+        self.builder = _Builder(self.iter_dir)
+        eval_dir = self.builder.eval_dir(1, "alpha")
+        self.builder.metadata(eval_dir, id=1, name="alpha", eval_mode="baseline")
+        self.builder.grading(eval_dir, "current_skill", passed=4, total=5)
+        self.builder.metrics(
+            eval_dir,
+            "current_skill",
+            host_telemetry={
+                "total_tokens": 15,
+                "input_tokens": 10,
+                "output_tokens": 5,
+                "model": "gpt-run",
+                "source": "notification",
+            },
+        )
+
+    def tearDown(self) -> None:
+        self._tmp.cleanup()
+
+    def _aggregate(self) -> tuple[int, str]:
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+        argv = [
+            "aggregate_benchmark.py",
+            str(self.iter_dir),
+            "--skill-name",
+            "example-skill",
+        ]
+        with patch.object(ab.sys, "argv", argv), contextlib.redirect_stdout(
+            stdout
+        ), contextlib.redirect_stderr(stderr):
+            result = ab.main()
+        self.assertEqual(result, 0, stderr.getvalue())
+        return result, stderr.getvalue()
+
+    def _benchmark(self) -> dict:
+        return json.loads((self.iter_dir / "benchmark.json").read_text(encoding="utf-8"))
+
+    def test_valid_session_sidecar_is_separate_and_allowlisted(self) -> None:
+        sidecar = {
+            "input_tokens": 100,
+            "input_cached_tokens": 40,
+            "output_tokens": 25,
+            "output_reasoning_tokens": 10,
+            "ai_credits": 1.25,
+            "premium_requests": 1,
+            "duration_ms": 1200,
+            "models": ["gpt-session"],
+            "source": "copilot-cli",
+            "request_body": "must not be copied into the benchmark",
+        }
+        (self.iter_dir / "session_usage.json").write_text(
+            json.dumps(sidecar), encoding="utf-8"
+        )
+
+        _, stderr = self._aggregate()
+
+        benchmark = self._benchmark()
+        session_usage = benchmark["run_summary"]["session_usage"]
+        self.assertNotIn("request_body", session_usage)
+        self.assertEqual(session_usage["total_tokens"], 125)
+        self.assertEqual(session_usage["input_tokens"], 100)
+        self.assertEqual(session_usage["ai_credits"], 1.25)
+        self.assertEqual(benchmark["run_summary"]["models"], ["gpt-run", "gpt-session"])
+        self.assertEqual(benchmark["runs"][0]["result"]["tokens"], 15)
+        self.assertEqual(benchmark["runs"][0]["result"]["input_tokens"], 10)
+        self.assertNotIn("ai_credits", benchmark["runs"][0]["result"])
+        self.assertEqual(stderr, "")
+
+    def test_missing_session_sidecar_is_omitted(self) -> None:
+        self._aggregate()
+
+        benchmark = self._benchmark()
+
+        self.assertNotIn("session_usage", benchmark["run_summary"])
+
+    def test_invalid_session_sidecar_is_omitted_with_sanitized_warning(self) -> None:
+        (self.iter_dir / "session_usage.json").write_text(
+            json.dumps(
+                {
+                    "input_tokens": -1,
+                    "models": ["gpt-session"],
+                    "source": "copilot-cli",
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        _, stderr = self._aggregate()
+
+        benchmark = self._benchmark()
+        self.assertNotIn("session_usage", benchmark["run_summary"])
+        self.assertIn("session_usage.json", stderr)
+        self.assertNotIn("gpt-session", stderr)
+
+    def test_malformed_session_sidecar_is_omitted_with_warning(self) -> None:
+        (self.iter_dir / "session_usage.json").write_text(
+            "{malformed", encoding="utf-8"
+        )
+
+        _, stderr = self._aggregate()
+
+        benchmark = self._benchmark()
+        self.assertNotIn("session_usage", benchmark["run_summary"])
+        self.assertIn("session_usage.json", stderr)
 
 
 class SkillFeedbackRollupTests(unittest.TestCase):

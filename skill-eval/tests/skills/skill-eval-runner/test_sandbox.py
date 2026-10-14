@@ -95,6 +95,7 @@ class GitDirtyPathsTests(unittest.TestCase):
         _run_git(self.repo, "init", "-q")
         _run_git(self.repo, "config", "user.email", "t@t.test")
         _run_git(self.repo, "config", "user.name", "Test")
+        _run_git(self.repo, "config", "commit.gpgsign", "false")
         (self.repo / "tracked.txt").write_text("v1\n")
         _run_git(self.repo, "add", "tracked.txt")
         _run_git(self.repo, "commit", "-q", "-m", "seed")

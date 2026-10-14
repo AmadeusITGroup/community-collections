@@ -20,9 +20,12 @@ import mimetypes
 import os
 import re
 import sys
+import tempfile
 import threading
 import webbrowser
 from pathlib import Path
+
+from copilot_usage import CopilotUsageError, load_copilot_usage
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -58,6 +61,35 @@ PDF_EXTENSIONS = {".pdf"}
 METADATA_FILES = {"transcript.md", "user_notes.md", "metrics.json"}
 
 TEMPLATE_NAME = "review-template.html"
+USAGE_SUMMARY_SCHEMA_VERSION = 1
+USAGE_SUMMARY_COUNTERS = {
+    "input_tokens",
+    "input_cached_tokens",
+    "input_cache_creation_tokens",
+    "input_cache_write_tokens",
+    "output_tokens",
+    "output_reasoning_tokens",
+    "total_tokens",
+    "total_api_duration_ms",
+}
+USAGE_SUMMARY_ROLES = {
+    "executor",
+    "grader",
+    "comparator",
+    "comparator-recovery",
+    "recovery",
+}
+USAGE_SUMMARY_VARIANTS = {"current_skill", "without_skill", "previous_skill"}
+USAGE_SUMMARY_OTHER_LABELS = {
+    "Runner",
+    "Analyzer",
+    "Comparator",
+    "Grader",
+    "Recovery",
+    "Other agent",
+}
+USAGE_SUMMARY_MODEL_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.:/-]{0,127}\Z")
+USAGE_SUMMARY_EVAL_RE = re.compile(r"eval-\d+\Z")
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -253,6 +285,7 @@ def build_progression_data(workspace: Path, skill_name: str) -> dict:
                 "iteration": num,
                 "timestamp": meta.get("timestamp", ""),
                 "comparison_mode": meta.get("comparison_mode", "baseline"),
+                "previous_iteration": meta.get("previous_iteration"),
                 "run_summary": rs,
                 "comparisons": benchmark.get("comparisons", {}),
                 "per_eval": list(eval_seen.values()),
@@ -299,11 +332,121 @@ def _resolve_embed_iterations(workspace_root: Path, served_iteration: int) -> li
     return sorted(wanted & existing)
 
 
+def _usage_counter_fields(source: dict) -> dict:
+    return {
+        key: value
+        for key, value in source.items()
+        if key in USAGE_SUMMARY_COUNTERS and type(value) is int and value >= 0
+    }
+
+
+def _usage_models(source: object) -> list[str]:
+    if not isinstance(source, list):
+        return []
+    return sorted(
+        {
+            model
+            for model in source
+            if isinstance(model, str) and USAGE_SUMMARY_MODEL_RE.fullmatch(model)
+        }
+    )
+
+
+def _sanitize_usage_summary(value: object) -> dict:
+    if not isinstance(value, dict):
+        raise CopilotUsageError(
+            "Saved Copilot usage summary has an unsupported structure"
+        )
+    if (
+        type(value.get("schema_version")) is not int
+        or value["schema_version"] != USAGE_SUMMARY_SCHEMA_VERSION
+        or value.get("source") != "copilot-cli"
+        or type(value.get("eval_count")) is not int
+        or value["eval_count"] < 0
+        or not isinstance(value.get("session"), dict)
+        or not isinstance(value.get("eval_agents"), list)
+        or not isinstance(value.get("other_agents"), list)
+    ):
+        raise CopilotUsageError(
+            "Saved Copilot usage summary has an unsupported structure"
+        )
+
+    session_source = value["session"]
+    session = {"models": _usage_models(session_source.get("models"))}
+    session.update(_usage_counter_fields(session_source))
+
+    eval_agents = []
+    for raw_agent in value["eval_agents"]:
+        if not isinstance(raw_agent, dict):
+            continue
+        eval_id = raw_agent.get("eval_id")
+        role = raw_agent.get("role")
+        if (
+            not isinstance(eval_id, str)
+            or not USAGE_SUMMARY_EVAL_RE.fullmatch(eval_id)
+            or not isinstance(role, str)
+            or role not in USAGE_SUMMARY_ROLES
+        ):
+            continue
+        agent = {
+            "eval_id": eval_id,
+            "role": role,
+            "models": _usage_models(raw_agent.get("models")),
+        }
+        variant = raw_agent.get("variant")
+        if isinstance(variant, str) and variant in USAGE_SUMMARY_VARIANTS:
+            agent["variant"] = variant
+        agent.update(_usage_counter_fields(raw_agent))
+        eval_agents.append(agent)
+
+    other_agents = []
+    for raw_agent in value["other_agents"]:
+        if not isinstance(raw_agent, dict):
+            continue
+        label = raw_agent.get("label")
+        if (
+            not isinstance(label, str)
+            or label not in USAGE_SUMMARY_OTHER_LABELS
+        ):
+            label = "Other agent"
+        agent = {"label": label, "models": _usage_models(raw_agent.get("models"))}
+        agent.update(_usage_counter_fields(raw_agent))
+        other_agents.append(agent)
+
+    eval_agents.sort(key=lambda agent: (agent["eval_id"], agent["role"]))
+    other_agents.sort(key=lambda agent: (agent["label"], agent["models"]))
+    return {
+        "schema_version": USAGE_SUMMARY_SCHEMA_VERSION,
+        "source": "copilot-cli",
+        "eval_count": value["eval_count"],
+        "session": session,
+        "eval_agents": eval_agents,
+        "other_agents": other_agents,
+    }
+
+
+def _load_usage_summaries(workspace_root: Path) -> dict[str, dict]:
+    summaries: dict[str, dict] = {}
+    for iteration, iteration_dir in discover_iterations(workspace_root):
+        path = iteration_dir / "usage_summary.json"
+        if not path.is_file():
+            continue
+        try:
+            value = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+            raise CopilotUsageError(
+                "Saved Copilot usage summary could not be read"
+            ) from exc
+        summaries[str(iteration)] = _sanitize_usage_summary(value)
+    return summaries
+
+
 def build_report_data(
     workspace_root: Path,
     served_iteration: int,
     skill_name: str,
     embed_all: bool = False,
+    usage_summary_override: dict[str, dict] | None = None,
 ) -> dict:
     """Build the full embedded data payload for the report template.
 
@@ -348,6 +491,10 @@ def build_report_data(
         or {}
     )
 
+    iteration_usage_summaries = _load_usage_summaries(workspace_root)
+    if usage_summary_override:
+        iteration_usage_summaries.update(usage_summary_override)
+
     return {
         "skill_name": skill_name,
         "served_iteration": served_iteration,
@@ -356,6 +503,7 @@ def build_report_data(
         "iteration_benchmarks": benchmarks,
         "iteration_runs": iteration_runs,
         "embedded_iterations": embed_iters,
+        "iteration_usage_summaries": iteration_usage_summaries,
         "previous_feedback": prev_fb,
     }
 
@@ -555,9 +703,20 @@ def main() -> None:
         help="Write standalone HTML file instead of serving",
     )
     parser.add_argument(
+        "--usage-output-file",
+        type=Path,
+        default=None,
+        help=(
+            "Copilot CLI final usage JSON to normalize and embed in a static "
+            "report (requires --static)"
+        ),
+    )
+    parser.add_argument(
         "--port", type=int, default=3117, help="HTTP server port (default: 3117)"
     )
     args = parser.parse_args()
+    if args.usage_output_file is not None and args.static is None:
+        parser.error("--usage-output-file requires --static")
 
     workspace = args.workspace.resolve()
     if not workspace.is_dir():
@@ -581,18 +740,85 @@ def main() -> None:
         print(f"Error: iteration directory not found: {served_dir}", file=sys.stderr)
         sys.exit(1)
 
-    if args.static:
-        # Static mode: embed all iterations so the exported HTML is self-contained.
-        report_data = build_report_data(
-            workspace, iteration, args.skill_name, embed_all=True
+    usage_summary: dict | None = None
+    usage_sidecar: Path | None = None
+    usage_summary_override: dict[str, dict] | None = None
+    try:
+        if args.usage_output_file is not None:
+            usage_summary = load_copilot_usage(args.usage_output_file, served_dir)
+            usage_sidecar = served_dir / "usage_summary.json"
+            usage_summary_override = {str(iteration): usage_summary}
+
+        if args.static:
+            # Static mode: embed all iterations so the exported HTML is self-contained.
+            report_data = build_report_data(
+                workspace,
+                iteration,
+                args.skill_name,
+                embed_all=True,
+                usage_summary_override=usage_summary_override,
+            )
+            html = generate_html(report_data)
+            out = args.static.resolve()
+            if usage_summary is not None and usage_sidecar is not None:
+                summary_text = (
+                    json.dumps(
+                        usage_summary,
+                        indent=2,
+                        ensure_ascii=False,
+                        sort_keys=True,
+                    )
+                    + "\n"
+                )
+                _write_files_atomically(
+                    [(usage_sidecar, summary_text), (out, html)]
+                )
+            else:
+                out.write_text(html, encoding="utf-8")
+            print(f"Wrote standalone HTML to {out}")
+        else:
+            if usage_summary is not None and usage_sidecar is not None:
+                summary_text = (
+                    json.dumps(
+                        usage_summary,
+                        indent=2,
+                        ensure_ascii=False,
+                        sort_keys=True,
+                    )
+                    + "\n"
+                )
+                _write_files_atomically([(usage_sidecar, summary_text)])
+            serve(workspace, iteration, args.skill_name, args.port)
+    except CopilotUsageError as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        sys.exit(1)
+    except OSError:
+        print(
+            "Error: could not write the usage summary or report output",
+            file=sys.stderr,
         )
-        html = generate_html(report_data)
-        out = args.static.resolve()
-        out.write_text(html, encoding="utf-8")
-        print(f"Wrote standalone HTML to {out}")
-    else:
-        # Server mode
-        serve(workspace, iteration, args.skill_name, args.port)
+        sys.exit(1)
+
+
+def _write_files_atomically(files: list[tuple[Path, str]]) -> None:
+    staged: list[tuple[Path, Path]] = []
+    try:
+        for output_path, content in files:
+            fd, temp_name = tempfile.mkstemp(
+                prefix=f".{output_path.name}.",
+                suffix=".tmp",
+                dir=str(output_path.parent),
+            )
+            temp_path = Path(temp_name)
+            staged.append((temp_path, output_path))
+            with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as stream:
+                stream.write(content)
+        for temp_path, output_path in staged:
+            os.replace(temp_path, output_path)
+    finally:
+        for temp_path, _output_path in staged:
+            if temp_path.exists():
+                temp_path.unlink()
 
 
 if __name__ == "__main__":

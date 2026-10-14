@@ -10,7 +10,7 @@ per-variant ``outputs/metrics.json`` is assembled. It:
    sidecar next to ``metrics.json`` (capturing Task-return telemetry from
    hosts like Claude Code), merges it into ``metrics.notification`` and
    deletes the sidecar.
-3. If a VS Code Copilot session debug log is available, scans the matching
+3. If a VS Code Copilot Chat session debug log is available, scans the matching
    ``runSubagent-skill-eval-executor-*-<sid>.jsonl`` file and emits a
    ``host_telemetry`` block with log-derived tokens, turn count, tool
    calls, tool errors, and model.
@@ -276,8 +276,8 @@ def _ensure_executor_layers(metrics: dict[str, Any]) -> dict[str, Any]:
     """Ensure self_report + user_notes exist with the expected shape.
 
     When executors write a legacy flat shape (``tool_calls`` / ``user_notes`` at
-    top level), fold it into ``self_report``. When anything is missing, fill in
-    minimal stubs so downstream readers have a stable shape.
+    top level), fold it into ``self_report``. Preserve absent measurements as
+    unknown rather than filling them with zeroes.
     """
     if "self_report" not in metrics or not isinstance(metrics.get("self_report"), dict):
         legacy = {
@@ -291,13 +291,15 @@ def _ensure_executor_layers(metrics: dict[str, Any]) -> dict[str, Any]:
             )
             if k in metrics
         }
-        metrics["self_report"] = legacy or {
-            "tool_calls": {},
-            "total_tool_calls": 0,
-            "total_steps": 0,
-            "files_created": [],
-            "output_chars": 0,
-        }
+        metrics["self_report"] = legacy
+    if metrics["self_report"] == {
+        "tool_calls": {},
+        "total_tool_calls": 0,
+        "total_steps": 0,
+        "files_created": [],
+        "output_chars": 0,
+    }:
+        metrics["self_report"] = {}
     if "user_notes" not in metrics or not isinstance(metrics.get("user_notes"), dict):
         metrics["user_notes"] = _empty_user_notes()
     # Drop any stray legacy harvester keys — this script is now canonical.
@@ -324,35 +326,75 @@ def _build_host_telemetry(
     3. eval_metadata.prepared_at + ``response.md`` mtime (last resort)
     """
     block: dict[str, Any] = {}
-    source = "wall_clock"
 
     started_at: str | None = None
     completed_at: str | None = None
     duration_ms: int | None = None
-    total_tokens: int | None = None
-    input_tokens: int | None = None
-    output_tokens: int | None = None
+    token_values: dict[str, int | None] = {
+        "total_tokens": None,
+        "input_tokens": None,
+        "input_cached_tokens": None,
+        "input_cache_creation_tokens": None,
+        "input_cache_write_tokens": None,
+        "output_tokens": None,
+        "output_reasoning_tokens": None,
+    }
     turn_count: int | None = None
     model: str | None = None
     tool_calls: dict | None = None
     tool_errors: int | None = None
     total_tool_calls: int | None = None
     ttft: float | None = None
+    token_source: str | None = None
+    other_source: str | None = None
+
+    def read_counter(value: Any) -> int | None:
+        if isinstance(value, (int, float)) and not isinstance(value, bool):
+            return int(value)
+        return None
+
+    def merge_token_values(source_values: dict[str, Any], source_name: str) -> None:
+        nonlocal token_source
+        supplied = False
+        for field in token_values:
+            value = read_counter(source_values.get(field))
+            if value is not None:
+                token_values[field] = value
+                supplied = True
+        if supplied:
+            token_source = source_name
 
     # 1. Notification layer (base)
     if notification:
         started_at = to_iso_utc(notification.get("spawned_at"))
         completed_at = to_iso_utc(notification.get("returned_at"))
-        nt = notification.get("total_tokens")
-        if isinstance(nt, (int, float)):
-            total_tokens = int(nt)
-            source = "notification"
+        notification_tokens = {
+            "total_tokens": notification.get("total_tokens"),
+            "input_tokens": notification.get("input_tokens"),
+            "input_cached_tokens": notification.get("input_cached_tokens"),
+            "input_cache_creation_tokens": notification.get(
+                "input_cache_creation_tokens"
+            ),
+            "input_cache_write_tokens": notification.get("input_cache_write_tokens"),
+            "output_tokens": notification.get("output_tokens"),
+            "output_reasoning_tokens": notification.get("output_reasoning_tokens"),
+        }
+        merge_token_values(notification_tokens, "notification")
         nd = notification.get("duration_ms")
         if isinstance(nd, (int, float)):
             duration_ms = int(nd)
-            source = "notification"
+        if duration_ms is not None or started_at or completed_at or notification.get(
+            "model"
+        ):
+            other_source = "notification"
+        notification_turns = read_counter(notification.get("turn_count"))
+        if notification_turns is not None:
+            turn_count = notification_turns
+        notification_model = notification.get("model")
+        if isinstance(notification_model, str) and notification_model:
+            model = notification_model
 
-    # 2. Debug log layer (overrides, most granular)
+    # 2. VS Code debug log layer (overrides, most granular)
     if log_scan:
         if log_scan.get("ts_ms") and log_scan.get("dur_ms"):
             ts_ms = int(log_scan["ts_ms"])
@@ -360,12 +402,15 @@ def _build_host_telemetry(
             started_at = to_iso_utc(ts_ms)
             completed_at = to_iso_utc(ts_ms + d_ms)
             duration_ms = d_ms
-            source = "debug_log"
-        if log_scan.get("total_tokens"):
-            total_tokens = int(log_scan["total_tokens"])
-            input_tokens = int(log_scan.get("input_tokens") or 0)
-            output_tokens = int(log_scan.get("output_tokens") or 0)
-            source = "debug_log"
+            other_source = "debug_log"
+        debug_tokens = {
+            "total_tokens": log_scan.get("total_tokens"),
+            "input_tokens": log_scan.get("input_tokens"),
+            "output_tokens": log_scan.get("output_tokens"),
+        }
+        if any(read_counter(value) for value in debug_tokens.values()):
+            merge_token_values(debug_tokens, "debug_log")
+            other_source = "debug_log"
         if log_scan.get("turn_count"):
             turn_count = int(log_scan["turn_count"])
         if log_scan.get("model"):
@@ -402,12 +447,9 @@ def _build_host_telemetry(
     if duration_ms is not None:
         block["duration_ms"] = duration_ms
         block["total_duration_seconds"] = round(duration_ms / 1000.0, 3)
-    if total_tokens is not None:
-        block["total_tokens"] = total_tokens
-    if input_tokens is not None:
-        block["input_tokens"] = input_tokens
-    if output_tokens is not None:
-        block["output_tokens"] = output_tokens
+    for field, value in token_values.items():
+        if value is not None:
+            block[field] = value
     if turn_count is not None:
         block["turn_count"] = turn_count
     if ttft is not None:
@@ -424,11 +466,14 @@ def _build_host_telemetry(
     if tool_errors is not None:
         block["tool_errors"] = tool_errors
 
-    block["source"] = source
+    block["source"] = token_source or other_source or "wall_clock"
     return block
 
 
-def finalize_variant(variant_dir: Path, log_scan: dict | None) -> tuple[str, str]:
+def finalize_variant(
+    variant_dir: Path,
+    log_scan: dict | None,
+) -> tuple[str, str]:
     """Write the consolidated ``outputs/metrics.json`` for one variant.
 
     Returns (host_telemetry.source, metrics_source).
@@ -454,7 +499,10 @@ def finalize_variant(variant_dir: Path, log_scan: dict | None) -> tuple[str, str
     # host_telemetry from harvested sources
     eval_metadata = load_json(variant_dir.parent / "eval_metadata.json")
     metrics["host_telemetry"] = _build_host_telemetry(
-        variant_dir, metrics.get("notification"), log_scan, eval_metadata
+        variant_dir,
+        metrics.get("notification"),
+        log_scan,
+        eval_metadata,
     )
 
     # metrics_source: single downstream tag
@@ -517,7 +565,10 @@ def verify_no_tree_escape(
     )
 
 
-def finalize_iteration(iteration_dir: Path, session_log: Path | None) -> int:
+def finalize_iteration(
+    iteration_dir: Path,
+    session_log: Path | None,
+) -> int:
     if not iteration_dir.is_dir():
         print(f"{RED}Iteration dir not found: {iteration_dir}{NC}")
         return 1
@@ -536,7 +587,11 @@ def finalize_iteration(iteration_dir: Path, session_log: Path | None) -> int:
             file=sys.stderr,
         )
 
-    source_counts = {"notification": 0, "debug_log": 0, "wall_clock": 0}
+    source_counts = {
+        "notification": 0,
+        "debug_log": 0,
+        "wall_clock": 0,
+    }
     metrics_counts = {"debug_log": 0, "self_report": 0}
 
     for vd in variants:
@@ -547,8 +602,8 @@ def finalize_iteration(iteration_dir: Path, session_log: Path | None) -> int:
     if session_log is None:
         print(
             f"{YELLOW}note: no --session-log provided and "
-            f"$VSCODE_TARGET_SESSION_LOG was unset or empty. Token/turn counts "
-            f"and per-tool breakdowns are unavailable (debug_log=0).{NC}",
+            f"$VSCODE_TARGET_SESSION_LOG was unset or empty. VS Code debug-log "
+            f"tool details are unavailable (debug_log=0).{NC}",
             file=sys.stderr,
         )
 

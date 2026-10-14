@@ -64,6 +64,15 @@ You will receive:
 - the skill's measured value (pass-rate delta) and blind A/B win counts
 - for iteration 2+, regression deltas versus the previous iteration
 - a `benchmark.json` / `benchmark.md` summary plus a unified HTML report with Progression, Benchmark, and Review pages
+- per-run token detail and model when the host reports them and attribution is complete; unavailable run tokens are shown as `N/A`, not zero
+- when a Copilot CLI final usage file is supplied after the CLI exits, sanitized session and agent usage can enrich the static report, with model details and labeled session-average fallbacks
+- optional legacy whole-session data under `run_summary.session_usage`, kept separate from per-eval totals
+
+### Copilot CLI final usage (host/CI responsibility)
+
+Copilot CLI usage collection and post-exit report regeneration belong to the host/CI wrapper, not the skill agent: the agent cannot restart its own CLI process to obtain final usage. See the [runner host/CI integration instructions](docs/skills/skill-eval-runner/README.md) for the CLI option and complete static-report command. The deterministic Python step writes a sanitized `usage_summary.json`; it does not require another model call, rewrite `metrics.json` or `benchmark.json`, or affect other hosts. Session totals and per-agent details overlap, so they are never added together. Agent usage is associated with an eval variant only when the attribution is unique; otherwise it remains unattributed. A labeled session average is only a display fallback, never per-run usage.
+
+Routine report generation does not require Copilot CLI debug logging. If debug logs are enabled for unrelated troubleshooting, they may contain full prompts and private inputs; keep them private and never commit or upload them. Other hosts should use only their own available telemetry integration.
 
 ## Development
 

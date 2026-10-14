@@ -65,6 +65,141 @@ def calculate_stats(values: list[float]) -> dict:
     }
 
 
+def calculate_nullable_stats(values: list[float]) -> dict[str, float | None]:
+    if not values:
+        return {"mean": None, "stddev": None, "min": None, "max": None}
+    return calculate_stats(values)
+
+
+def _reported_token_value(result: dict) -> int | float | None:
+    value = (
+        result.get("tokens")
+        if "tokens" in result
+        else result.get("total_tokens")
+    )
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    if value == 0 and result.get("source") == "wall_clock":
+        return None
+    return value
+
+
+def _token_samples(runs: list[dict], configuration: str) -> list[float]:
+    values: list[float] = []
+    for run in runs:
+        if run.get("configuration") != configuration:
+            continue
+        result = run.get("result") or {}
+        value = _reported_token_value(result)
+        if value is not None:
+            values.append(float(value))
+    return values
+
+
+def _load_session_usage(iteration_dir: Path) -> dict | None:
+    path = iteration_dir / "session_usage.json"
+    if not path.exists():
+        return None
+    try:
+        payload = load_json(path)
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        print(
+            f"{YELLOW}warn: session_usage.json could not be read; "
+            f"session-level telemetry omitted{NC}",
+            file=sys.stderr,
+        )
+        return None
+    if not isinstance(payload, dict):
+        print(
+            f"{YELLOW}warn: invalid session_usage.json; "
+            f"session-level telemetry omitted{NC}",
+            file=sys.stderr,
+        )
+        return None
+
+    integer_fields = (
+        "input_tokens",
+        "input_cached_tokens",
+        "input_cache_creation_tokens",
+        "input_cache_write_tokens",
+        "output_tokens",
+        "output_reasoning_tokens",
+        "total_tokens",
+        "premium_requests",
+        "duration_ms",
+    )
+    normalized: dict[str, Any] = {}
+    for field in integer_fields:
+        if field not in payload:
+            continue
+        value = payload[field]
+        if type(value) is not int or value < 0:
+            print(
+                f"{YELLOW}warn: invalid session_usage.json; "
+                f"session-level telemetry omitted{NC}",
+                file=sys.stderr,
+            )
+            return None
+        normalized[field] = value
+
+    if "ai_credits" in payload:
+        credits = payload["ai_credits"]
+        if (
+            isinstance(credits, bool)
+            or not isinstance(credits, (int, float))
+            or not math.isfinite(credits)
+            or credits < 0
+        ):
+            print(
+                f"{YELLOW}warn: invalid session_usage.json; "
+                f"session-level telemetry omitted{NC}",
+                file=sys.stderr,
+            )
+            return None
+        normalized["ai_credits"] = credits
+
+    if "models" in payload:
+        models = payload["models"]
+        if not isinstance(models, list) or any(
+            not isinstance(model, str) or not model.strip() for model in models
+        ):
+            print(
+                f"{YELLOW}warn: invalid session_usage.json; "
+                f"session-level telemetry omitted{NC}",
+                file=sys.stderr,
+            )
+            return None
+        normalized["models"] = sorted({model.strip() for model in models})
+
+    if payload.get("source") != "copilot-cli":
+        print(
+            f"{YELLOW}warn: invalid session_usage.json; "
+            f"session-level telemetry omitted{NC}",
+            file=sys.stderr,
+        )
+        return None
+
+    useful_fields = set(normalized) - {"source"}
+    if not useful_fields:
+        print(
+            f"{YELLOW}warn: invalid session_usage.json; "
+            f"session-level telemetry omitted{NC}",
+            file=sys.stderr,
+        )
+        return None
+
+    if (
+        "total_tokens" not in normalized
+        and "input_tokens" in normalized
+        and "output_tokens" in normalized
+    ):
+        normalized["total_tokens"] = (
+            normalized["input_tokens"] + normalized["output_tokens"]
+        )
+    normalized["source"] = "copilot-cli"
+    return normalized
+
+
 def load_json(path: Path) -> dict | None:
     if not path.exists():
         return None
@@ -188,7 +323,7 @@ def build_runs(
                 "total": summary.get("total", 0),
                 "time_seconds": host_telemetry.get("total_duration_seconds")
                 or ((host_telemetry.get("duration_ms") or 0) / 1000.0),
-                "tokens": host_telemetry.get("total_tokens") or 0,
+                "tokens": _reported_token_value(host_telemetry),
                 "model": host_telemetry.get("model"),
                 "total_tool_calls": total_tool_calls,
                 "total_steps": self_report.get("total_steps"),
@@ -197,6 +332,17 @@ def build_runs(
                 "metrics_source": metrics.get("metrics_source"),
                 "source": host_telemetry.get("source"),
             }
+            for field in (
+                "input_tokens",
+                "input_cached_tokens",
+                "input_cache_creation_tokens",
+                "input_cache_write_tokens",
+                "output_tokens",
+                "output_reasoning_tokens",
+            ):
+                value = host_telemetry.get(field)
+                if value is not None:
+                    result[field] = value
 
             expectations = [
                 {
@@ -234,7 +380,9 @@ def build_run_summary(runs: list[dict]) -> dict:
         result = run["result"]
         config_metrics[config]["pass_rate"].append(result["pass_rate"])
         config_metrics[config]["time_seconds"].append(result["time_seconds"])
-        config_metrics[config]["tokens"].append(float(result["tokens"]))
+        token_value = _reported_token_value(result)
+        if token_value is not None:
+            config_metrics[config]["tokens"].append(float(token_value))
         if result.get("total_tool_calls") is not None:
             config_metrics[config]["tool_calls"].append(
                 float(result["total_tool_calls"])
@@ -248,8 +396,9 @@ def build_run_summary(runs: list[dict]) -> dict:
         if config == "previous_skill" and not config_metrics[config]["pass_rate"]:
             continue
         bucket = {
-            metric: calculate_stats(config_metrics[config][metric])
-            for metric in ("pass_rate", "time_seconds", "tokens")
+            "pass_rate": calculate_stats(config_metrics[config]["pass_rate"]),
+            "time_seconds": calculate_stats(config_metrics[config]["time_seconds"]),
+            "tokens": calculate_nullable_stats(config_metrics[config]["tokens"]),
         }
         for opt in ("tool_calls", "steps"):
             if config_metrics[config][opt]:
@@ -258,21 +407,30 @@ def build_run_summary(runs: list[dict]) -> dict:
 
     ws = summary.get("current_skill", {})
     wos = summary.get("without_skill", {})
-    delta: dict[str, str] = {}
+    delta: dict[str, str | None] = {}
     for metric in ("pass_rate", "time_seconds", "tokens"):
         ws_mean = ws.get(metric, {}).get("mean", 0.0)
         wos_mean = wos.get(metric, {}).get("mean", 0.0)
+        if metric == "tokens" and (ws_mean is None or wos_mean is None):
+            delta[metric] = None
+            continue
         diff = ws_mean - wos_mean
         sign = "+" if diff >= 0 else ""
         delta[metric] = f"{sign}{round(diff, 4)}"
 
     summary["delta"] = delta
+    models: set[str] = set()
+    for run in runs:
+        model = (run.get("result") or {}).get("model")
+        if isinstance(model, str):
+            models.update(name.strip() for name in model.split(",") if name.strip())
+    summary["models"] = sorted(models)
     return summary
 
 
 def build_regression_delta(
     runs: list[dict], previous_dir: Path | None
-) -> dict[str, str] | None:
+) -> dict[str, str | None] | None:
     """Compute current_skill vs previous iteration's current_skill delta."""
     if not previous_dir:
         return None
@@ -290,22 +448,36 @@ def build_regression_delta(
     if not current_ws_rates:
         return None
 
-    reg_delta: dict[str, str] = {}
+    previous_runs = prev_benchmark.get("runs")
+    previous_token_values: list[float] | None = None
+    if isinstance(previous_runs, list) and any(
+        run.get("configuration") == "current_skill"
+        for run in previous_runs
+        if isinstance(run, dict)
+    ):
+        previous_token_values = _token_samples(previous_runs, "current_skill")
+
+    reg_delta: dict[str, str | None] = {}
     for metric in ("pass_rate", "time_seconds", "tokens"):
-        prev_mean = prev_summary.get(metric, {}).get("mean", 0.0)
         if metric == "tokens":
-            current_vals = [
-                float(r["result"]["tokens"])
-                for r in runs
-                if r["configuration"] == "current_skill"
-            ]
+            prev_mean = (
+                calculate_nullable_stats(previous_token_values)["mean"]
+                if previous_token_values is not None
+                else prev_summary.get(metric, {}).get("mean")
+            )
+            current_vals = _token_samples(runs, "current_skill")
+            cur_mean = calculate_nullable_stats(current_vals)["mean"]
+            if prev_mean is None or cur_mean is None:
+                reg_delta[metric] = None
+                continue
         else:
+            prev_mean = prev_summary.get(metric, {}).get("mean", 0.0)
             current_vals = [
                 r["result"][metric]
                 for r in runs
                 if r["configuration"] == "current_skill"
             ]
-        cur_mean = sum(current_vals) / len(current_vals) if current_vals else 0.0
+            cur_mean = sum(current_vals) / len(current_vals) if current_vals else 0.0
         diff = cur_mean - prev_mean
         sign = "+" if diff >= 0 else ""
         reg_delta[metric] = f"{sign}{round(diff, 4)}"
@@ -953,7 +1125,9 @@ def generate_markdown(benchmark: dict) -> str:
     lines.append(sep)
 
     def _stat_cell(section: dict, metric: str) -> str:
-        s = section.get(metric, {})
+        s = section.get(metric) or {}
+        if s.get("mean") is None:
+            return "N/A"
         return f"{s.get('mean', 'N/A')} (±{s.get('stddev', 'N/A')})"
 
     for metric in ("pass_rate", "time_seconds", "tokens"):
@@ -963,10 +1137,14 @@ def generate_markdown(benchmark: dict) -> str:
         if has_prev:
             prev_str = _stat_cell(summary.get("previous_skill", {}), metric)
             row += f" {prev_str} |"
-        delta = summary.get("delta", {}).get(metric, "N/A")
+        delta = summary.get("delta", {}).get(metric)
+        if delta is None:
+            delta = "N/A"
         row += f" {delta} |"
         if has_reg:
-            reg = summary.get("regression_delta", {}).get(metric, "N/A")
+            reg = summary.get("regression_delta", {}).get(metric)
+            if reg is None:
+                reg = "N/A"
             row += f" {reg} |"
         lines.append(row)
 
@@ -1003,10 +1181,13 @@ def generate_markdown(benchmark: dict) -> str:
         source = (
             f"iter {run['source_iteration']}" if run.get("source_iteration") else ""
         )
+        token_cell = r.get("tokens")
+        if token_cell is None:
+            token_cell = "N/A"
         lines.append(
             f"| {run['eval_name']} | {run['configuration']} "
             f"| {r['pass_rate']:.2f} | {r['passed']} | {r['failed']} "
-            f"| {r['time_seconds']:.1f} | {r['tokens']} | {source} |"
+            f"| {r['time_seconds']:.1f} | {token_cell} | {source} |"
         )
 
     lines.append("")
@@ -1268,6 +1449,12 @@ def main() -> int:
         print(f"{YELLOW}Warning: no grading.json files found in any eval directory{NC}")
 
     run_summary = build_run_summary(runs)
+    session_usage = _load_session_usage(iteration_dir)
+    if session_usage is not None:
+        run_summary["session_usage"] = session_usage
+        models = set(run_summary.get("models", []))
+        models.update(session_usage.get("models", []))
+        run_summary["models"] = sorted(models)
 
     # Regression delta is computed against the previous iteration (N-1),
     # not the baseline iteration.

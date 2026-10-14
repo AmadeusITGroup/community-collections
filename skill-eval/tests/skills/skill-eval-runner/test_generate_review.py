@@ -25,6 +25,8 @@ from __future__ import annotations
 
 import base64
 import json
+import socket
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -213,6 +215,27 @@ class BuildRunTests(unittest.TestCase):
         run = gr.build_run(self.iter_dir, cur)
         self.assertEqual(run["eval_name"], "eval-4-fallback-name")
 
+    def test_host_telemetry_details_remain_in_report_run_payload(self) -> None:
+        eval_dir = self.iter_dir / "eval-5-telemetry"
+        cur = eval_dir / "current_skill"
+        _mk_run(cur, "telemetry response", {"id": 5, "name": "telemetry"})
+        telemetry = {
+            "source": "notification",
+            "model": "gpt-5.5",
+            "input_tokens": 100,
+            "input_cached_tokens": 70,
+            "output_tokens": 25,
+            "output_reasoning_tokens": 8,
+            "total_tokens": 125,
+        }
+        (cur / "outputs" / "metrics.json").write_text(
+            json.dumps({"host_telemetry": telemetry}), encoding="utf-8"
+        )
+
+        run = gr.build_run(self.iter_dir, cur)
+
+        self.assertEqual(run["metrics"]["host_telemetry"], telemetry)
+
 
 class DiscoverIterationsTests(unittest.TestCase):
     def setUp(self) -> None:
@@ -245,11 +268,19 @@ class ProgressionDataTests(unittest.TestCase):
     def tearDown(self) -> None:
         self._tmp.cleanup()
 
-    def _benchmark(self, iter_num: int, runs: list[dict]) -> None:
+    def _benchmark(
+        self, iter_num: int, runs: list[dict], run_summary: dict | None = None
+    ) -> None:
         d = self.ws / f"iteration-{iter_num}"
         d.mkdir(parents=True, exist_ok=True)
         (d / "benchmark.json").write_text(
-            json.dumps({"metadata": {"comparison_mode": "baseline"}, "runs": runs}),
+            json.dumps(
+                {
+                    "metadata": {"comparison_mode": "baseline"},
+                    "runs": runs,
+                    "run_summary": run_summary or {},
+                }
+            ),
             encoding="utf-8",
         )
 
@@ -277,6 +308,35 @@ class ProgressionDataTests(unittest.TestCase):
         self.assertEqual(len(per_eval), 1)
         self.assertEqual(per_eval[0]["current_skill_pass_rate"], 1.0)
         self.assertEqual(per_eval[0]["without_skill_pass_rate"], 0.5)
+
+    def test_progression_data_preserves_previous_iteration(self) -> None:
+        self._benchmark(6, [], {})
+        benchmark_path = self.ws / "iteration-6" / "benchmark.json"
+        benchmark = json.loads(benchmark_path.read_text(encoding="utf-8"))
+        benchmark["metadata"].update(
+            {"comparison_mode": "regression", "previous_iteration": 5}
+        )
+        benchmark_path.write_text(json.dumps(benchmark), encoding="utf-8")
+
+        data = gr.build_progression_data(self.ws, "some-skill")
+
+        self.assertEqual(data["iterations"][0]["previous_iteration"], 5)
+
+    def test_session_usage_survives_progression_data_build(self) -> None:
+        session_usage = {
+            "input_tokens": 100,
+            "output_tokens": 25,
+            "total_tokens": 125,
+            "models": ["gpt-session"],
+            "source": "copilot-cli",
+        }
+        self._benchmark(1, [], {"session_usage": session_usage})
+
+        data = gr.build_progression_data(self.ws, "some-skill")
+
+        self.assertEqual(
+            data["iterations"][0]["run_summary"]["session_usage"], session_usage
+        )
 
     def test_iteration_without_benchmark_is_skipped(self) -> None:
         (self.ws / "iteration-1").mkdir()  # no benchmark.json
@@ -342,6 +402,242 @@ class GenerateHtmlEscapingTests(unittest.TestCase):
         self.assertNotIn(self.PS, html)
         self.assertIn("\\u2028", html)
         self.assertIn("\\u2029", html)
+
+
+class UsageSummaryTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.ws = Path(self._tmp.name) / "workspace"
+        self.ws.mkdir()
+
+    def tearDown(self) -> None:
+        self._tmp.cleanup()
+
+    def _iteration(self, number: int = 1) -> Path:
+        iteration = self.ws / f"iteration-{number}"
+        iteration.mkdir(parents=True)
+        (iteration / "iteration_config.json").write_text(
+            json.dumps({"mode": "regression", "baseline_iteration": 1}),
+            encoding="utf-8",
+        )
+        eval_dir = iteration / "eval-1"
+        _mk_run(eval_dir / "current_skill", "current output", {"id": 1})
+        _mk_run(eval_dir / "without_skill", "baseline output", {"id": 1})
+        (iteration / "benchmark.json").write_text(
+            json.dumps({"runs": [], "run_summary": {}}), encoding="utf-8"
+        )
+        return iteration
+
+    def _generate_static(
+        self,
+        iteration: Path,
+        output: Path,
+        usage_file: Path | None = None,
+    ) -> subprocess.CompletedProcess[str]:
+        command = [
+            sys.executable,
+            str(_VIEWER_DIR / "generate_review.py"),
+            str(self.ws),
+            "--skill-name",
+            "usage-test",
+            "--iteration",
+            iteration.name.removeprefix("iteration-"),
+            "--static",
+            str(output),
+        ]
+        if usage_file is not None:
+            command.extend(["--usage-output-file", str(usage_file)])
+        return subprocess.run(command, capture_output=True, text=True, check=False)
+
+    def test_report_data_loads_usage_summaries_for_available_iterations(self) -> None:
+        first = self._iteration(1)
+        second = self._iteration(2)
+        first_summary = {
+            "schema_version": 1,
+            "source": "copilot-cli",
+            "eval_count": 1,
+            "session": {"models": ["gpt-first"], "total_tokens": 10},
+            "eval_agents": [],
+            "other_agents": [],
+        }
+        second_summary = {
+            "schema_version": 1,
+            "source": "copilot-cli",
+            "eval_count": 1,
+            "session": {"models": ["gpt-second"], "total_tokens": 20},
+            "eval_agents": [],
+            "other_agents": [],
+        }
+        (first / "usage_summary.json").write_text(
+            json.dumps(first_summary), encoding="utf-8"
+        )
+        (second / "usage_summary.json").write_text(
+            json.dumps(second_summary), encoding="utf-8"
+        )
+
+        report_data = gr.build_report_data(self.ws, 2, "usage-test", embed_all=True)
+
+        self.assertEqual(
+            report_data.get("iteration_usage_summaries"),
+            {"1": first_summary, "2": second_summary},
+        )
+
+    def test_saved_usage_summary_sanitizes_untrusted_agent_fields(self) -> None:
+        iteration = self._iteration(1)
+        summary = {
+            "schema_version": 1,
+            "source": "copilot-cli",
+            "eval_count": 1,
+            "session": {"models": ["gpt-safe"], "total_tokens": 10},
+            "eval_agents": [
+                {
+                    "eval_id": "eval-1",
+                    "role": "executor",
+                    "variant": [],
+                    "models": [],
+                    "agent_id": "private-agent-id",
+                },
+                {
+                    "eval_id": "eval-1",
+                    "role": [],
+                    "models": [],
+                    "private_label": "must not leak",
+                },
+            ],
+            "other_agents": [
+                {"label": [], "models": [], "private_label": "must not leak"}
+            ],
+            "diagnostic_prompt": "must not leak",
+        }
+        (iteration / "usage_summary.json").write_text(
+            json.dumps(summary), encoding="utf-8"
+        )
+
+        try:
+            report_data = gr.build_report_data(
+                self.ws, 1, "usage-test", embed_all=True
+            )
+        except TypeError as exc:
+            self.fail(f"malformed sidecar fields should be sanitized: {exc}")
+
+        normalized = report_data["iteration_usage_summaries"]["1"]
+        self.assertEqual(len(normalized["eval_agents"]), 1)
+        self.assertNotIn("variant", normalized["eval_agents"][0])
+        self.assertEqual(normalized["other_agents"][0]["label"], "Other agent")
+        serialized = json.dumps(normalized)
+        self.assertNotIn("private-agent-id", serialized)
+        self.assertNotIn("private_label", serialized)
+        self.assertNotIn("must not leak", serialized)
+        self.assertNotIn("diagnostic_prompt", serialized)
+
+    def test_usage_output_file_writes_summary_and_static_report(self) -> None:
+        iteration = self._iteration(4)
+        output = self.ws / "report.html"
+        usage_file = _REPO_ROOT / "tests" / "fixtures" / "copilot_usage" / "final-usage.json"
+        metrics_path = iteration / "eval-1" / "current_skill" / "outputs" / "metrics.json"
+        metrics_path.write_text('{"keep": "metrics"}', encoding="utf-8")
+        benchmark_path = iteration / "benchmark.json"
+        original_metrics = metrics_path.read_bytes()
+        original_benchmark = benchmark_path.read_bytes()
+
+        result = self._generate_static(iteration, output, usage_file)
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertTrue(output.is_file())
+        summary_path = iteration / "usage_summary.json"
+        self.assertTrue(summary_path.is_file())
+        summary_text = summary_path.read_text(encoding="utf-8")
+        report_text = output.read_text(encoding="utf-8")
+        self.assertIn('"schema_version": 1', summary_text)
+        self.assertNotIn("raw-agent-id", summary_text)
+        self.assertNotIn("diagnosticPrompt", summary_text)
+        self.assertNotIn("private-fixture.py", summary_text)
+        self.assertNotIn(str(usage_file), report_text)
+        self.assertIn("iteration_usage_summaries", report_text)
+        self.assertEqual(metrics_path.read_bytes(), original_metrics)
+        self.assertEqual(benchmark_path.read_bytes(), original_benchmark)
+
+    def test_missing_usage_option_preserves_legacy_static_generation(self) -> None:
+        iteration = self._iteration(1)
+        output = self.ws / "report.html"
+
+        result = self._generate_static(iteration, output)
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertTrue(output.is_file())
+        self.assertFalse((iteration / "usage_summary.json").exists())
+
+    def test_invalid_usage_file_preserves_existing_outputs(self) -> None:
+        iteration = self._iteration(1)
+        output = self.ws / "report.html"
+        output.write_text("existing report", encoding="utf-8")
+        summary_path = iteration / "usage_summary.json"
+        summary_path.write_text("existing summary", encoding="utf-8")
+        usage_file = self.ws / "malformed-usage.json"
+        usage_file.write_text("{not valid json", encoding="utf-8")
+
+        result = self._generate_static(iteration, output, usage_file)
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("Copilot usage", result.stderr)
+        self.assertNotIn("unrecognized arguments", result.stderr)
+        self.assertEqual(output.read_text(encoding="utf-8"), "existing report")
+        self.assertEqual(summary_path.read_text(encoding="utf-8"), "existing summary")
+
+    def test_usage_output_file_requires_static_before_writing(self) -> None:
+        iteration = self._iteration(1)
+        output = self.ws / "report.html"
+        output.write_text("existing report", encoding="utf-8")
+        summary_path = iteration / "usage_summary.json"
+        summary_path.write_text("existing summary", encoding="utf-8")
+        usage_file = (
+            _REPO_ROOT / "tests" / "fixtures" / "copilot_usage" / "final-usage.json"
+        )
+
+        with socket.socket() as occupied_port:
+            occupied_port.bind(("127.0.0.1", 0))
+            occupied_port.listen()
+            port = occupied_port.getsockname()[1]
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(_VIEWER_DIR / "generate_review.py"),
+                    str(self.ws),
+                    "--skill-name",
+                    "usage-test",
+                    "--iteration",
+                    "1",
+                    "--usage-output-file",
+                    str(usage_file),
+                    "--port",
+                    str(port),
+                ],
+                capture_output=True,
+                text=True,
+                check=False,
+                timeout=10,
+            )
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(output.read_text(encoding="utf-8"), "existing report")
+        self.assertEqual(summary_path.read_text(encoding="utf-8"), "existing summary")
+        self.assertIn("--static", result.stderr)
+
+    def test_static_usage_report_is_deterministic(self) -> None:
+        iteration = self._iteration(1)
+        output = self.ws / "report.html"
+        usage_file = _REPO_ROOT / "tests" / "fixtures" / "copilot_usage" / "final-usage.json"
+
+        first = self._generate_static(iteration, output, usage_file)
+        self.assertEqual(first.returncode, 0, first.stderr)
+        first_html = output.read_bytes()
+        first_summary = (iteration / "usage_summary.json").read_bytes()
+
+        second = self._generate_static(iteration, output, usage_file)
+
+        self.assertEqual(second.returncode, 0, second.stderr)
+        self.assertEqual(output.read_bytes(), first_html)
+        self.assertEqual((iteration / "usage_summary.json").read_bytes(), first_summary)
 
 
 def _report_data_stub(extra: dict) -> dict:

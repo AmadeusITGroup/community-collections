@@ -8,6 +8,7 @@
 var REVIEW_SUBSECTIONS = [
   { slot: "prompt",        label: "Prompt",          iconKey: "prompt"        },
   { slot: "output",        label: "Output",          iconKey: "output"        },
+  { slot: "cost",           label: "Cost",            iconKey: "cost"          },
   { slot: "expectations",  label: "Expectations",    iconKey: "expectations"  },
   { slot: "sw",            label: "S&W",             iconKey: "sw"            },
   { slot: "ab-comparison", label: "A/B comparison",  iconKey: "ab-comparison" },

@@ -58,7 +58,9 @@ function buildHealthSignalsCard(iters){
     }
     if(anyModel){
       if(r.model){
-        var tip = r.model.mixed ? "Mixed: " + r.model.models.join(", ") : r.model.label;
+        var tip = r.model.source === "session"
+          ? "Session-level model(s), not attributed to individual evals: " + r.model.models.join(", ")
+          : (r.model.mixed ? "Mixed: " + r.model.models.join(", ") : "Per-run model: " + r.model.label);
         tableHtml += '<td><span class="iter-model-badge' + (r.model.mixed ? ' mixed' : '') + '" title="' + esc(tip) + '">' + esc(r.model.label) + '</span></td>';
       } else {
         tableHtml += '<td style="color:var(--text-light)">—</td>';
@@ -91,6 +93,7 @@ function renderProgressionPage(){
     $main.innerHTML = '<div class="card" style="text-align:center;padding:60px;color:var(--text-muted)">No iteration data available.</div>';
     return;
   }
+  var EV = window.__EV;
   var latest = iters[iters.length - 1];
   var rs = latest.run_summary || {};
   var ws = rs.current_skill || {};
@@ -105,7 +108,19 @@ function renderProgressionPage(){
   var passRateMean = ws.pass_rate ? ws.pass_rate.mean : null;
   var passRateStddev = ws.pass_rate ? ws.pass_rate.stddev : null;
   var deltaPassRate = parseFloat(delta.pass_rate);
-  var avgTokens = ws.tokens ? ws.tokens.mean : null;
+  var runAvgTokens = ws.tokens ? ws.tokens.mean : null;
+  var sessionAvgTokens = runAvgTokens == null
+    ? EV.iterationSessionUsageAverage(latest.iteration, "total_tokens")
+    : null;
+  var avgTokens = runAvgTokens != null
+    ? runAvgTokens
+    : (sessionAvgTokens ? sessionAvgTokens.value : null);
+  var tokenTitle = sessionAvgTokens
+    ? EV.sessionUsageAverageTitle(sessionAvgTokens)
+    : "Mean of per-run token usage for the current-skill evaluations.";
+  if(avgTokens != null){
+    tokenTitle += " Exact displayed average: " + formatNum(avgTokens) + " tokens.";
+  }
 
   var html = "";
   html += secHeading(NAV_ICONS.overview, "Overview", "overview").replace('</div>', modeBadge + '</div>');
@@ -120,7 +135,8 @@ function renderProgressionPage(){
     '<div class="metric-value accent">' + (latest.per_eval ? latest.per_eval.length : 0) + '</div>' +
     '<div class="metric-sub">test cases</div></div>';
   html += '<div class="metric-card"><div class="metric-label">Avg Tokens</div>' +
-    '<div class="metric-value">' + (avgTokens != null ? Math.round(avgTokens).toLocaleString() : "N/A") + '</div>' +
+    '<div class="metric-value" title="' + esc(tokenTitle) + '">' +
+    (avgTokens != null ? EV.formatTokenCount(avgTokens) : "N/A") + '</div>' +
     '<div class="metric-sub">per eval</div></div>';
   html += '</div>';
 
@@ -133,7 +149,6 @@ function renderProgressionPage(){
     html += healthHtml;
   }
 
-  var EV = window.__EV;
   html += secHeading(NAV_ICONS.heatmap, "Eval Heatmap", "heatmap");
   html += '<div class="card" style="overflow-x:auto">' + EV.buildProgressionHeatmap(iters) + '</div>';
 

@@ -14,11 +14,15 @@ Stdlib unittest only.
 
 from __future__ import annotations
 
+import contextlib
+import io
 import json
+import os
 import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 _REPO_ROOT = Path(__file__).resolve().parents[3]
 _SCRIPTS_DIR = _REPO_ROOT / "skills" / "skill-eval-runner" / "scripts"
@@ -62,17 +66,47 @@ class ParseIsoTests(unittest.TestCase):
 
 
 class EnsureExecutorLayersTests(unittest.TestCase):
-    def test_empty_gets_stubs(self) -> None:
+    def test_missing_self_report_does_not_invent_measurement_zeros(self) -> None:
         out = fm._ensure_executor_layers({})
         self.assertIn("self_report", out)
         self.assertIn("user_notes", out)
-        self.assertEqual(out["self_report"]["total_tool_calls"], 0)
+        self.assertNotIn("total_tool_calls", out["self_report"])
+        self.assertNotIn("total_steps", out["self_report"])
         # user_notes has the full skill_feedback shape
         self.assertEqual(
             set(out["user_notes"]["skill_feedback"]),
             {"missing_from_skill", "ambiguous_instructions",
              "broken_references", "outdated_or_wrong"},
         )
+
+    def test_legacy_empty_measurement_stub_is_treated_as_unknown(self) -> None:
+        stub = {
+            "tool_calls": {},
+            "total_tool_calls": 0,
+            "total_steps": 0,
+            "files_created": [],
+            "output_chars": 0,
+        }
+
+        out = fm._ensure_executor_layers({"self_report": stub})
+
+        self.assertEqual(out["self_report"], {})
+
+    def test_reported_zero_counts_are_preserved_when_self_report_has_output(self) -> None:
+        metrics = {
+            "self_report": {
+                "tool_calls": {},
+                "total_tool_calls": 0,
+                "total_steps": 0,
+                "files_created": ["response.md"],
+                "output_chars": 42,
+            }
+        }
+
+        out = fm._ensure_executor_layers(metrics)
+
+        self.assertEqual(out["self_report"]["total_tool_calls"], 0)
+        self.assertEqual(out["self_report"]["total_steps"], 0)
 
     def test_legacy_flat_shape_folded_into_self_report(self) -> None:
         legacy = {
@@ -167,7 +201,6 @@ class BuildHostTelemetryTests(unittest.TestCase):
         block = fm._build_host_telemetry(self.variant_dir, notification, None, None)
         self.assertEqual(block["duration_ms"], 10000)
         self.assertEqual(block["total_duration_seconds"], 10.0)
-
 
 class ScanLogTests(unittest.TestCase):
     def setUp(self) -> None:
@@ -289,6 +322,75 @@ class FinalizeVariantTests(unittest.TestCase):
         }
         _, metrics_source = fm.finalize_variant(self.variant_dir, log_scan)
         self.assertEqual(metrics_source, "debug_log")
+
+
+class CopilotCliLogRemovalTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self._tmp.name)
+        self.iteration_dir = self.root / "iteration-1"
+        self.eval_dir = self.iteration_dir / "eval-1-example"
+        self.current_skill = self.eval_dir / "current_skill"
+        self.without_skill = self.eval_dir / "without_skill"
+        for variant_dir in (self.current_skill, self.without_skill):
+            outputs = variant_dir / "outputs"
+            outputs.mkdir(parents=True)
+            (outputs / "response.md").write_text("synthetic response\n", encoding="utf-8")
+            (outputs / "metrics.json").write_text(
+                json.dumps({"self_report": {}, "user_notes": fm._empty_user_notes()}),
+                encoding="utf-8",
+            )
+
+    def tearDown(self) -> None:
+        self._tmp.cleanup()
+
+    def _read_metrics(self, variant_dir: Path) -> dict:
+        return json.loads(
+            (variant_dir / "outputs" / "metrics.json").read_text(encoding="utf-8")
+        )
+
+    def test_finalizer_help_omits_copilot_cli_log_options(self) -> None:
+        stdout = io.StringIO()
+        with patch.object(fm.sys, "argv", ["finalize_metrics.py", "--help"]), \
+             contextlib.redirect_stdout(stdout):
+            with self.assertRaises(SystemExit) as raised:
+                fm.main()
+
+        self.assertEqual(raised.exception.code, 0)
+        self.assertIn("--session-log", stdout.getvalue())
+        self.assertNotIn("--copilot-log-dir", stdout.getvalue())
+        self.assertNotIn("SKILL_EVAL_COPILOT_LOG_DIR", stdout.getvalue())
+
+    def test_environment_cli_log_dir_does_not_write_session_usage(self) -> None:
+        log_dir = self.root / "copilot-logs"
+        log_dir.mkdir()
+        log_record = {
+            "id": "synthetic-response-1",
+            "model": "gpt-synthetic",
+            "usage": {
+                "prompt_tokens": 2,
+                "completion_tokens": 3,
+                "total_tokens": 5,
+            },
+        }
+        (log_dir / "process-synthetic.log").write_text(
+            json.dumps(log_record) + "\n", encoding="utf-8"
+        )
+        argv = ["finalize_metrics.py", str(self.iteration_dir)]
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+
+        with patch.object(fm.sys, "argv", argv), patch.dict(
+            os.environ,
+            {
+                "SKILL_EVAL_COPILOT_LOG_DIR": str(log_dir),
+                "VSCODE_TARGET_SESSION_LOG": "",
+            },
+        ), contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+            result = fm.main()
+
+        self.assertEqual(result, 0)
+        self.assertFalse((self.iteration_dir / "session_usage.json").exists())
 
 
 class DiscoverVariantDirsTests(unittest.TestCase):

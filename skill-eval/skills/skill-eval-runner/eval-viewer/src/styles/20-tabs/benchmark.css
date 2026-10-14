@@ -71,8 +71,66 @@
 }
 .bench-cost-table th:first-child{text-align:left}
 .bench-cost-table td{padding:10px 12px;border-bottom:1px solid var(--border-light);text-align:right}
-.bench-cost-table td:first-child{text-align:left;font-weight:600;color:var(--text)}
+.bench-cost-table td:first-child{
+  text-align:left;font-weight:600;color:var(--text);
+}
+.bench-cost-table:not(.bench-cost-detail-table)>tbody>tr:not(.bench-cost-group):not(.bench-cost-details-row)>td:first-child{
+  white-space:nowrap;
+}
 .bench-cost-table td .delta-chip{margin-left:auto}
+.bench-cost-table tr.bench-cost-group td{
+  padding-top:10px;padding-bottom:8px;
+  background:var(--border-light);color:var(--text);
+  border-top:1px solid var(--border);font-weight:700;text-align:left;
+}
+.bench-cost-group-description{
+  display:block;margin-top:3px;font-size:0.72rem;
+  font-weight:400;color:var(--text-muted);
+}
+.bench-cost-table tr.bench-cost-details-row>td{
+  padding:5px 12px!important;text-align:left!important;
+  font-weight:400!important;color:var(--text-muted)!important;
+}
+.bench-cost-breakdown>summary{
+  color:var(--text-muted);cursor:pointer;font-size:0.76rem;font-weight:600;
+}
+.bench-cost-detail-table{
+  width:100%;margin-top:5px;table-layout:fixed;
+  font-size:0.8rem;
+}
+.bench-cost-detail-table td:first-child{width:32%;white-space:normal}
+.bench-cost-table tr.bench-cost-token-detail td{
+  padding-top:6px;padding-bottom:6px;font-size:0.8rem;color:var(--text-muted);
+}
+.bench-cost-table tr.bench-cost-token-detail td:first-child{
+  padding-left:28px;font-weight:500;color:var(--text-muted);
+}
+.bench-cost-coverage{
+  color:var(--text-muted);font-size:0.68rem;white-space:nowrap;
+}
+.bench-cost-framework-agents>td{text-align:left!important;font-weight:400!important}
+.bench-cost-framework-agents summary{
+  color:var(--text-muted);cursor:pointer;font-weight:700;
+}
+.bench-cost-framework-agents-note{
+  margin:8px 0 0;font-size:0.76rem;color:var(--text-muted);
+}
+.bench-cost-agents-table{
+  width:100%;margin-top:6px;border-collapse:collapse;font-size:0.78rem;
+  font-variant-numeric:tabular-nums;
+}
+.bench-cost-agents-table th,
+.bench-cost-agents-table td{
+  padding:6px 10px;border-bottom:1px solid var(--border-light);
+  text-align:right;
+}
+.bench-cost-agents-table th:first-child,
+.bench-cost-agents-table td:first-child{
+  width:26%;text-align:left;white-space:nowrap;
+}
+.bench-cost-agents-table th{
+  color:var(--text-muted);font-size:0.68rem;text-transform:uppercase;
+}
 .bench-cost-ratio-warn::after{content:" \26A0";color:var(--warn);font-weight:700;margin-left:4px}
 .bench-cost-table th .bench-cost-ref{
   display:block;margin-top:2px;

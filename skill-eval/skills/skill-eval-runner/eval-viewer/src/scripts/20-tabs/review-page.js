@@ -65,6 +65,48 @@ function _reviewBuildDeltaMap(evalOrder, mode){
   return out;
 }
 
+function _reviewUsageContext(mode){
+  var iteration = Number(state.activeIteration);
+  var config = (typeof D !== "undefined" && D.served_iteration_config) || {};
+  var summaries = (typeof D !== "undefined" && D.iteration_usage_summaries) || {};
+  if(mode === "regression"){
+    var baselineIteration = Number(config.baseline_iteration);
+    if(!Number.isInteger(baselineIteration) || baselineIteration < 1){
+      baselineIteration = 1;
+    }
+    return {
+      summaries: summaries,
+      sources: {
+        baseline: {
+          iteration: baselineIteration,
+          configuration: "without_skill"
+        },
+        previous: {
+          iteration: iteration > 1 ? iteration - 1 : null,
+          configuration: "current_skill"
+        },
+        current: {
+          iteration: iteration,
+          configuration: "current_skill"
+        }
+      }
+    };
+  }
+  return {
+    summaries: summaries,
+    sources: {
+      baseline: {
+        iteration: iteration,
+        configuration: "without_skill"
+      },
+      current: {
+        iteration: iteration,
+        configuration: "current_skill"
+      }
+    }
+  };
+}
+
 function renderReviewBody(currentRuns, mode, baselineRuns, prevRuns){
   if(!currentRuns || !currentRuns.length){
     $main.innerHTML = '<div class="card" style="text-align:center;padding:60px;color:var(--text-muted)">No run data available for iteration ' + state.activeIteration + '.</div>';
@@ -110,7 +152,12 @@ function _renderActiveEval(evalId){
   var oqSides = resolveOutputQualitySides(group.comparison);
   var bodySlot = document.getElementById("review-eval-body");
   if(!bodySlot) return;
-  bodySlot.innerHTML = buildEvalReviewBlock(group, built.mode, oqSides);
+  bodySlot.innerHTML = buildEvalReviewBlock(
+    group,
+    built.mode,
+    oqSides,
+    _reviewUsageContext(built.mode)
+  );
 
   bindOutputTabs();
   bindFeedbackAreas();
