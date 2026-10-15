@@ -1,0 +1,26 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/AmadeusITGroup/prompt-registry/refs/heads/main/schemas/collection.schema.json
+id: analyse-ai-use
+name: Analyse AI Use
+description: "Analyse how you use AI coding tools in a workspace and produce a styled HTML report with token-saving, iteration-cutting advice. Scans the local session transcripts of the tool it runs inside (Claude Code, GitHub Copilot CLI, or Copilot Chat)."
+tags:
+  - ai-usage
+  - token-optimisation
+  - cost-analysis
+  - observability
+  - efficiency
+  - claude-code
+  - github-copilot
+items:
+  - path: skills/analyse-ai-use/SKILL.md
+    kind: skill
+    tags:
+      - ai-usage
+      - token-optimisation
+      - cost-analysis
+      - usage-report
+version: "1.0.0"
+readme:
+  path: skills/analyse-ai-use/README.md
+display:
+  ordering: manual
+  show_badge: true
