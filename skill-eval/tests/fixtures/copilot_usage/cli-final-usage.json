@@ -1,0 +1,219 @@
+{
+  "totalPremiumRequestCost": 0,
+  "totalUserRequests": 1,
+  "totalNanoAiu": 8000,
+  "totalApiDurationMs": 16300,
+  "sessionStartTime": "2026-10-16T00:00:00.000Z",
+  "codeChanges": {
+    "filesModified": [
+      "private-fixture.py"
+    ]
+  },
+  "modelMetrics": {
+    "claude-sonnet-5.5": {
+      "requests": {
+        "count": 6,
+        "cost": 0
+      },
+      "usage": {
+        "inputTokens": 660,
+        "outputTokens": 66,
+        "cacheReadTokens": 264,
+        "cacheWriteTokens": 0,
+        "reasoningTokens": 0
+      },
+      "totalNanoAiu": 6000
+    },
+    "gpt-6-luna": {
+      "requests": {
+        "count": 2,
+        "cost": 0
+      },
+      "usage": {
+        "inputTokens": 1070,
+        "outputTokens": 107,
+        "cacheReadTokens": 428,
+        "cacheWriteTokens": 0,
+        "reasoningTokens": 43
+      },
+      "totalNanoAiu": 2000
+    }
+  },
+  "agentMetrics": {
+    "main": {
+      "modelMetrics": {
+        "gpt-6-luna": {
+          "requests": {
+            "count": 1,
+            "cost": 0
+          },
+          "usage": {
+            "inputTokens": 1000,
+            "outputTokens": 100,
+            "cacheReadTokens": 400,
+            "cacheWriteTokens": 0,
+            "reasoningTokens": 40
+          },
+          "totalNanoAiu": 1000
+        }
+      },
+      "totalApiDurationMs": 9000,
+      "totalNanoAiu": 1000
+    },
+    "00000000-0000-4000-8000-000000000001": {
+      "agentName": "skill-eval-executor",
+      "agentDisplayName": "skill-eval-executor",
+      "modelMetrics": {
+        "claude-sonnet-5.5": {
+          "requests": {
+            "count": 1,
+            "cost": 0
+          },
+          "usage": {
+            "inputTokens": 300,
+            "outputTokens": 30,
+            "cacheReadTokens": 120,
+            "cacheWriteTokens": 0,
+            "reasoningTokens": 0
+          },
+          "totalNanoAiu": 1000
+        }
+      },
+      "totalApiDurationMs": 3000,
+      "totalNanoAiu": 1000
+    },
+    "00000000-0000-4000-8000-000000000002": {
+      "agentName": "skill-eval-executor",
+      "agentDisplayName": "skill-eval-executor",
+      "modelMetrics": {
+        "claude-sonnet-5.5": {
+          "requests": {
+            "count": 1,
+            "cost": 0
+          },
+          "usage": {
+            "inputTokens": 200,
+            "outputTokens": 20,
+            "cacheReadTokens": 80,
+            "cacheWriteTokens": 0,
+            "reasoningTokens": 0
+          },
+          "totalNanoAiu": 1000
+        }
+      },
+      "totalApiDurationMs": 2000,
+      "totalNanoAiu": 1000
+    },
+    "00000000-0000-4000-8000-000000000003": {
+      "agentName": "skill-eval-grader",
+      "agentDisplayName": "skill-eval-grader",
+      "modelMetrics": {
+        "claude-sonnet-5.5": {
+          "requests": {
+            "count": 1,
+            "cost": 0
+          },
+          "usage": {
+            "inputTokens": 50,
+            "outputTokens": 5,
+            "cacheReadTokens": 20,
+            "cacheWriteTokens": 0,
+            "reasoningTokens": 0
+          },
+          "totalNanoAiu": 1000
+        }
+      },
+      "totalApiDurationMs": 500,
+      "totalNanoAiu": 1000
+    },
+    "00000000-0000-4000-8000-000000000004": {
+      "agentName": "skill-eval-grader",
+      "agentDisplayName": "skill-eval-grader",
+      "modelMetrics": {
+        "claude-sonnet-5.5": {
+          "requests": {
+            "count": 1,
+            "cost": 0
+          },
+          "usage": {
+            "inputTokens": 40,
+            "outputTokens": 4,
+            "cacheReadTokens": 16,
+            "cacheWriteTokens": 0,
+            "reasoningTokens": 0
+          },
+          "totalNanoAiu": 1000
+        }
+      },
+      "totalApiDurationMs": 400,
+      "totalNanoAiu": 1000
+    },
+    "00000000-0000-4000-8000-000000000005": {
+      "agentName": "skill-eval-comparator",
+      "agentDisplayName": "skill-eval-comparator",
+      "modelMetrics": {
+        "claude-sonnet-5.5": {
+          "requests": {
+            "count": 1,
+            "cost": 0
+          },
+          "usage": {
+            "inputTokens": 60,
+            "outputTokens": 6,
+            "cacheReadTokens": 24,
+            "cacheWriteTokens": 0,
+            "reasoningTokens": 0
+          },
+          "totalNanoAiu": 1000
+        }
+      },
+      "totalApiDurationMs": 600,
+      "totalNanoAiu": 1000
+    },
+    "00000000-0000-4000-8000-000000000006": {
+      "agentName": "skill-eval-analyzer",
+      "agentDisplayName": "skill-eval-analyzer",
+      "modelMetrics": {
+        "gpt-6-luna": {
+          "requests": {
+            "count": 1,
+            "cost": 0
+          },
+          "usage": {
+            "inputTokens": 70,
+            "outputTokens": 7,
+            "cacheReadTokens": 28,
+            "cacheWriteTokens": 0,
+            "reasoningTokens": 3
+          },
+          "totalNanoAiu": 1000
+        }
+      },
+      "totalApiDurationMs": 700,
+      "totalNanoAiu": 1000
+    },
+    "00000000-0000-4000-8000-000000000007": {
+      "agentName": "skill-eval-executor",
+      "agentDisplayName": "skill-eval-executor",
+      "modelMetrics": {
+        "claude-sonnet-5.5": {
+          "requests": {
+            "count": 1,
+            "cost": 0
+          },
+          "usage": {
+            "inputTokens": 10,
+            "outputTokens": 1,
+            "cacheReadTokens": 4,
+            "cacheWriteTokens": 0,
+            "reasoningTokens": 0
+          },
+          "totalNanoAiu": 1000
+        }
+      },
+      "totalApiDurationMs": 100,
+      "totalNanoAiu": 1000
+    }
+  },
+  "currentModel": "gpt-6-luna"
+}

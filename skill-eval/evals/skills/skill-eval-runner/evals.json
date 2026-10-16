@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0.0",
   "skill_name": "skill-eval-runner",
-  "skill_version": "1.1.0",
+  "skill_version": "1.1.1",
   "description": "Behavioral eval suite for skill-eval-runner. The skill's product is orchestration artifacts (sub-agent dispatch plans, executor/grader/comparator prompts, the notification sidecar) plus gate decisions and result diagnosis, so each eval hands the agent concrete material (the staged release-note-writer fixture skill, or a pre-populated fixture workspace) and asks it to PRODUCE or DIAGNOSE an artifact — never to quiz it on documentation. Covers the two 'When NOT to use' boundaries (stop when no evals.json; defer generation to skill-eval-generator), the baseline EXECUTE dispatch (2xN executors, per-variant sandboxes, without_skill isolation, files staging, parallel launch), the iteration-2 regression dispatch (reuse without_skill, current-vs-previous pairing), composing a grader prompt with grading.json placed as a sibling of outputs/, the blind A/B dispatch (assign_ab -> blind comparator -> resolve_comparisons), writing the notification.json sidecar without computing host telemetry, diagnosing a misplaced-grading.json 0% pass rate from a real workspace, and presenting the PHASE 4 report summary from a benchmark.json.",
   "evals": [
     {
@@ -41,7 +41,8 @@
         "Response emits both a current_skill and a without_skill prompt for every one of the 3 evals.",
         "Each without_skill prompt explicitly instructs the executor NOT to read any files under skills/ or knowledge-bases/, while the current_skill prompt tells it to read the release-note-writer SKILL.md.",
         "Every produced prompt scopes writes to a per-variant sandbox (eval-{id}-{name}/{variant}/sandbox/) and points response.md + metrics.json into that variant's outputs/ directory.",
-        "Response states the executors are launched in parallel in a single message, and eval 2's prompts point the executor at its staged merged-prs.md input rather than omitting the file."
+        "Response states the executors are launched in parallel in a single message, and eval 2's prompts point the executor at its staged merged-prs.md input rather than omitting the file.",
+        "When the response describes how the executors are launched with a sub-agent tool that accepts a name, it names them eval-{id}-executor-current-skill and eval-{id}-executor-without-skill (for example eval-2-executor-without-skill), not with the eval directory slug alone."
       ]
     },
     {
@@ -72,7 +73,8 @@
         "The produced grader prompt writes grading.json to the variant root (eval-1-single-feature-release/current_skill/grading.json), a sibling of outputs/, and NOT to a path inside outputs/.",
         "Response shows awareness that placing grading.json under outputs/ makes aggregate_benchmark.py silently skip it and report a 0% pass rate — treating the placement as a correctness requirement, not a style choice.",
         "The grader prompt inlines eval 1's expectations (and expected_output) from evals.json rather than telling the grader to fetch them from metrics.json.",
-        "Response does not instruct the grader to read the variant's outputs/metrics.json (grading is response + expectations only)."
+        "Response does not instruct the grader to read the variant's outputs/metrics.json (grading is response + expectations only).",
+        "If the response shows how the grader sub-agent is launched with a name, the name follows eval-{id}-grader-{variant} with variant current-skill or without-skill."
       ]
     },
     {
@@ -87,7 +89,8 @@
         "Response orders the steps as assign_ab.py (before) -> blind comparator(s) -> resolve_comparisons.py (after), and attributes the A/B assignment to assign_ab.py rather than to the comparator.",
         "The produced comparator prompt exposes only the two response files as A and B (by path), and does NOT reveal variant names or hand the comparator ab_assignment.json.",
         "Response has the comparator emit a blind winner (A/B/TIE) with rubric/reasoning only, and leaves winner_variant / comparison_mode to be added later by resolve_comparisons.py.",
-        "Response notes the assignment is seeded/deterministic (reproducible) rather than the comparator picking A/B at random itself."
+        "Response notes the assignment is seeded/deterministic (reproducible) rather than the comparator picking A/B at random itself.",
+        "If the response shows how the comparator sub-agent is launched with a name, it uses eval-{id}-comparator."
       ]
     },
     {

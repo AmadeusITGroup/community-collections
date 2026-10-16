@@ -25,7 +25,7 @@ import threading
 import webbrowser
 from pathlib import Path
 
-from copilot_usage import CopilotUsageError, load_copilot_usage
+from copilot_usage import CopilotUsageError, load_copilot_usage, load_task_names
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -82,6 +82,7 @@ USAGE_SUMMARY_ROLES = {
 USAGE_SUMMARY_VARIANTS = {"current_skill", "without_skill", "previous_skill"}
 USAGE_SUMMARY_OTHER_LABELS = {
     "Runner",
+    "Executor",
     "Analyzer",
     "Comparator",
     "Grader",
@@ -413,7 +414,13 @@ def _sanitize_usage_summary(value: object) -> dict:
         agent.update(_usage_counter_fields(raw_agent))
         other_agents.append(agent)
 
-    eval_agents.sort(key=lambda agent: (agent["eval_id"], agent["role"]))
+    eval_agents.sort(
+        key=lambda agent: (
+            agent["eval_id"],
+            agent["role"],
+            agent.get("variant", ""),
+        )
+    )
     other_agents.sort(key=lambda agent: (agent["label"], agent["models"]))
     return {
         "schema_version": USAGE_SUMMARY_SCHEMA_VERSION,
@@ -712,11 +719,22 @@ def main() -> None:
         ),
     )
     parser.add_argument(
+        "--copilot-events-file",
+        type=Path,
+        default=None,
+        help=(
+            "Copilot CLI session events.jsonl used only to attribute sub-agent "
+            "usage to eval cases (requires --usage-output-file)"
+        ),
+    )
+    parser.add_argument(
         "--port", type=int, default=3117, help="HTTP server port (default: 3117)"
     )
     args = parser.parse_args()
     if args.usage_output_file is not None and args.static is None:
         parser.error("--usage-output-file requires --static")
+    if args.copilot_events_file is not None and args.usage_output_file is None:
+        parser.error("--copilot-events-file requires --usage-output-file")
 
     workspace = args.workspace.resolve()
     if not workspace.is_dir():
@@ -745,7 +763,26 @@ def main() -> None:
     usage_summary_override: dict[str, dict] | None = None
     try:
         if args.usage_output_file is not None:
-            usage_summary = load_copilot_usage(args.usage_output_file, served_dir)
+            task_names = None
+            if args.copilot_events_file is not None:
+                try:
+                    task_names = load_task_names(args.copilot_events_file)
+                except CopilotUsageError as exc:
+                    print(
+                        f"Warning: {exc}; usage is reported without per-eval "
+                        "attribution",
+                        file=sys.stderr,
+                    )
+            usage_summary = load_copilot_usage(
+                args.usage_output_file, served_dir, task_names=task_names
+            )
+            if task_names is not None and not usage_summary["eval_agents"]:
+                print(
+                    f"Warning: none of the {len(task_names)} named sub-agents in "
+                    "the events file matched the eval naming convention; usage "
+                    "is grouped by role",
+                    file=sys.stderr,
+                )
             usage_sidecar = served_dir / "usage_summary.json"
             usage_summary_override = {str(iteration): usage_summary}
 
