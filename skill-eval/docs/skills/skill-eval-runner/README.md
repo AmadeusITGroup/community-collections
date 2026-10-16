@@ -48,18 +48,25 @@ The host/CI wrapper—not the skill agent—must request final usage when it lau
 
 ```bash
 WORKSPACE="evals/skills/$SKILL/workspace"
+COPILOT_SESSION_ID="$(python3 -c 'import uuid; print(uuid.uuid4())')"
 
-copilot --usage-output-file "$COPILOT_USAGE_FILE" ...
+copilot --session-id "$COPILOT_SESSION_ID" --usage-output-file "$COPILOT_USAGE_FILE" ...
 
 # Run only after the Copilot CLI process exits.
+COPILOT_EVENTS_FILE="${COPILOT_HOME:-$HOME/.copilot}/session-state/$COPILOT_SESSION_ID/events.jsonl"
 python3 skills/skill-eval-runner/eval-viewer/generate_review.py \
   "$WORKSPACE" \
   --skill-name "$SKILL" \
   --usage-output-file "$COPILOT_USAGE_FILE" \
+  --copilot-events-file "$COPILOT_EVENTS_FILE" \
   --static "$WORKSPACE/report.html"
 ```
 
-Omitting `--iteration` lets the generator select the latest iteration in that workspace. The deterministic post-exit step writes a sanitized `usage_summary.json` without another model call or changes to `metrics.json` or `benchmark.json`. Session totals and per-agent details overlap and must not be added together. Agent usage is attached to a variant only when attribution is unique; otherwise it remains unattributed. A session average is only a labeled display fallback, not measured per-run usage.
+Omitting `--iteration` lets the generator select the latest iteration in that workspace. The deterministic post-exit step writes a sanitized `usage_summary.json` without another model call or changes to `metrics.json` or `benchmark.json`. Session totals and per-agent details overlap and must not be added together. A session average is only a labeled display fallback, not measured per-run usage.
+
+**Per-eval attribution.** Copilot CLI records each sub-agent's usage under its agent definition (for example `skill-eval-executor`), not under the task name the runner chose. The runner names every sub-agent after its eval, role, and variant (see *Sub-agent names* in the runner `SKILL.md`), and those names appear only in the CLI session events. `--session-id` fixes the session directory, and `--copilot-events-file` lets the generator join each sub-agent to its task name. Without the events file, or when it cannot be read, usage stays complete but is grouped under safe role labels (Runner, Executor, Grader, Comparator, Analyzer) instead of per eval; legacy `eval-N-role` display names still attribute. Sub-agents whose task names do not follow the convention are grouped the same way, and the generator warns when an events file attributes no sub-agent at all. Common variations (an eval slug before the role, `_` or spaces as separators, `with-skill` for `current-skill`) are accepted. A variant comes from the task name, or is inferred only when the eval ran a single variant.
+
+The events file contains complete prompts and outputs. The generator reads only task names and agent ids from it, keeps them in memory, and writes none of them, nor any path, to `usage_summary.json` or the report. Keep the events file private and never commit or upload it.
 
 VS Code's `--session-log` is only for runs hosted by VS Code Copilot Chat. Other compatible hosts should use only their own available task-result notification or log integration. The report shows per-run model and token details when present, `N/A` for unavailable run tokens, and session models in Pass Rate Trend, Health Signals, and Resource Usage when per-run model attribution is unavailable. Benchmark Cost Overhead separates executor-only, all eval-linked, and whole-session averages; token breakdowns and unlinked support-agent totals are collapsed by default. Token counts use compact notation with exact values on hover, and coverage is shown only when incomplete. The unlinked-agent table reuses the comparison columns and shows deltas/ratios only when source values are available; its iteration totals are already included in whole-session usage and must not be added again. Legacy caller-provided `session_usage.json` remains supported for historical data.
 

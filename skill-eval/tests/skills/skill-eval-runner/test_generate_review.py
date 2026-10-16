@@ -34,6 +34,12 @@ from pathlib import Path
 
 _REPO_ROOT = Path(__file__).resolve().parents[3]
 _VIEWER_DIR = _REPO_ROOT / "skills" / "skill-eval-runner" / "eval-viewer"
+_CLI_USAGE_FIXTURE = (
+    _REPO_ROOT / "tests" / "fixtures" / "copilot_usage" / "cli-final-usage.json"
+)
+_CLI_EVENTS_FIXTURE = (
+    _REPO_ROOT / "tests" / "fixtures" / "copilot_usage" / "cli-session-events.jsonl"
+)
 sys.path.insert(0, str(_VIEWER_DIR))
 
 import generate_review as gr  # noqa: E402
@@ -433,6 +439,7 @@ class UsageSummaryTests(unittest.TestCase):
         iteration: Path,
         output: Path,
         usage_file: Path | None = None,
+        events_file: Path | None = None,
     ) -> subprocess.CompletedProcess[str]:
         command = [
             sys.executable,
@@ -447,6 +454,8 @@ class UsageSummaryTests(unittest.TestCase):
         ]
         if usage_file is not None:
             command.extend(["--usage-output-file", str(usage_file)])
+        if events_file is not None:
+            command.extend(["--copilot-events-file", str(events_file)])
         return subprocess.run(command, capture_output=True, text=True, check=False)
 
     def test_report_data_loads_usage_summaries_for_available_iterations(self) -> None:
@@ -638,6 +647,140 @@ class UsageSummaryTests(unittest.TestCase):
         self.assertEqual(second.returncode, 0, second.stderr)
         self.assertEqual(output.read_bytes(), first_html)
         self.assertEqual((iteration / "usage_summary.json").read_bytes(), first_summary)
+
+    def test_copilot_events_file_attributes_eval_usage_by_variant(self) -> None:
+        iteration = self._iteration(1)
+        output = self.ws / "report.html"
+
+        result = self._generate_static(
+            iteration, output, _CLI_USAGE_FIXTURE, _CLI_EVENTS_FIXTURE
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        summary = json.loads(
+            (iteration / "usage_summary.json").read_text(encoding="utf-8")
+        )
+        executors = {
+            agent["variant"]: agent["total_tokens"]
+            for agent in summary["eval_agents"]
+            if agent["role"] == "executor"
+        }
+        self.assertEqual(executors, {"current_skill": 330, "without_skill": 220})
+        report_text = output.read_text(encoding="utf-8")
+        for private in (
+            "helper-with-private-task-text",
+            "synthetic prompt text",
+            "call_synthetic",
+            str(_CLI_EVENTS_FIXTURE),
+        ):
+            self.assertNotIn(private, report_text)
+
+    def test_copilot_events_file_requires_usage_output_file(self) -> None:
+        iteration = self._iteration(1)
+        output = self.ws / "report.html"
+
+        result = subprocess.run(
+            [
+                sys.executable,
+                str(_VIEWER_DIR / "generate_review.py"),
+                str(self.ws),
+                "--skill-name",
+                "usage-test",
+                "--iteration",
+                "1",
+                "--static",
+                str(output),
+                "--copilot-events-file",
+                str(_CLI_EVENTS_FIXTURE),
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("--copilot-events-file requires --usage-output-file", result.stderr)
+        self.assertFalse(output.exists())
+        self.assertFalse((iteration / "usage_summary.json").exists())
+
+    def test_unreadable_copilot_events_file_keeps_unattributed_usage(self) -> None:
+        iteration = self._iteration(1)
+        output = self.ws / "report.html"
+        missing_events = self.ws / "private-session" / "events.jsonl"
+
+        result = self._generate_static(
+            iteration, output, _CLI_USAGE_FIXTURE, missing_events
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("Warning", result.stderr)
+        self.assertNotIn("private-session", result.stderr)
+        self.assertTrue(output.is_file())
+        summary = json.loads(
+            (iteration / "usage_summary.json").read_text(encoding="utf-8")
+        )
+        self.assertEqual(summary["eval_agents"], [])
+        self.assertEqual(summary["session"]["total_tokens"], 1903)
+        self.assertIn("Executor", [agent["label"] for agent in summary["other_agents"]])
+
+    def test_events_file_without_conforming_names_warns_and_continues(self) -> None:
+        iteration = self._iteration(1)
+        output = self.ws / "report.html"
+        events = self.ws / "events.jsonl"
+        events.write_text(
+            json.dumps({"type": "tool.execution_start", "data": {"toolCallId": "c1", "toolName": "task", "arguments": {"name": "private-unconventional-name"}}})
+            + "\n"
+            + json.dumps({"type": "subagent.started", "agentId": "00000000-0000-4000-8000-000000000001", "data": {"toolCallId": "c1"}})
+            + "\n",
+            encoding="utf-8",
+        )
+
+        result = self._generate_static(iteration, output, _CLI_USAGE_FIXTURE, events)
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("Warning", result.stderr)
+        self.assertIn("naming convention", result.stderr)
+        self.assertNotIn("private-unconventional-name", result.stderr)
+        self.assertNotIn(str(events), result.stderr)
+
+    def test_saved_usage_summary_keeps_executor_label_and_sorts_variants(
+        self,
+    ) -> None:
+        iteration = self._iteration(1)
+        summary = {
+            "schema_version": 1,
+            "source": "copilot-cli",
+            "eval_count": 1,
+            "session": {"models": ["gpt-safe"], "total_tokens": 10},
+            "eval_agents": [
+                {
+                    "eval_id": "eval-1",
+                    "role": "executor",
+                    "variant": "without_skill",
+                    "models": [],
+                },
+                {
+                    "eval_id": "eval-1",
+                    "role": "executor",
+                    "variant": "current_skill",
+                    "models": [],
+                },
+                {"eval_id": "eval-1", "role": "executor", "models": []},
+            ],
+            "other_agents": [{"label": "Executor", "models": ["gpt-safe"]}],
+        }
+        (iteration / "usage_summary.json").write_text(
+            json.dumps(summary), encoding="utf-8"
+        )
+
+        report_data = gr.build_report_data(self.ws, 1, "usage-test", embed_all=True)
+
+        normalized = report_data["iteration_usage_summaries"]["1"]
+        self.assertEqual(
+            [agent.get("variant") for agent in normalized["eval_agents"]],
+            [None, "current_skill", "without_skill"],
+        )
+        self.assertEqual(normalized["other_agents"][0]["label"], "Executor")
 
 
 def _report_data_stub(extra: dict) -> dict:

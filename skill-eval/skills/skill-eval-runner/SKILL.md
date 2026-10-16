@@ -8,7 +8,7 @@ user-invocable: true
 license: SEE LICENSE IN LICENSE
 metadata:
   author: Cyril Colombel
-  version: "1.1.0"
+  version: "1.1.1"
 ---
 
 # Skill Eval Runner
@@ -80,6 +80,19 @@ For a single eval case: add `--eval-id N`.
 - **Total** = `2 × count(baseline_evals) + 1 × count(regression_evals)`
 
 Issue all Agent tool calls in a single message. Do NOT loop eval cases sequentially.
+
+### Sub-agent names (mandatory when supported)
+
+When the host's sub-agent tool accepts a `name` (for example the Copilot CLI `task` tool), name every sub-agent you spawn as below. Host/CI usage reports rely on these names to attribute token usage to eval cases and variants; without them, usage stays unattributed.
+
+| Sub-agent | `name` |
+|-----------|--------|
+| Executor | `eval-{id}-executor-current-skill` or `eval-{id}-executor-without-skill` |
+| Grader | `eval-{id}-grader-current-skill` or `eval-{id}-grader-without-skill` |
+| Comparator | `eval-{id}-comparator` |
+| Analyzer | `analyzer` |
+
+`{id}` is the numeric eval id only (`eval-3-grader-without-skill`, never `eval-3-{name}-…`). Re-launching a sub-agent reuses its name.
 
 ### current_skill prompt
 
@@ -172,7 +185,7 @@ Executor caps each skill_feedback bucket at 5 entries (highest impact first). Th
 
 ### 3a. Grade expectations (parallel)
 
-**Spawn ALL grader sub-agents in a single parallel batch.** Do NOT run them sequentially.
+**Spawn ALL grader sub-agents in a single parallel batch.** Do NOT run them sequentially. Name them per [Sub-agent names](#sub-agent-names-mandatory-when-supported).
 
 - **Baseline evals**: 2 graders per eval (`current_skill` + `without_skill`)
 - **Regression evals**: 1 grader per eval (`current_skill` only; `without_skill` grading is reused from the baseline iteration)
@@ -214,7 +227,7 @@ It writes `ab_assignment.json` in each eval directory. The comparator agent MUST
 
 **Step 3b-ii (parallel comparators):**
 
-Spawn one `skill-eval-comparator` per eval. Each comparator only sees `variant_A_response.md` and `variant_B_response.md` (by path, not by variant name). It writes `comparison.json` with a blind `winner` (`A`, `B`, or `TIE`), `rubric`, `reasoning`, and `notable_differences`. It does NOT write `assignment`, `winner_variant`, `comparison_mode`, `baseline_iteration`, or `previous_iteration`.
+Spawn one `skill-eval-comparator` per eval, named per [Sub-agent names](#sub-agent-names-mandatory-when-supported). Each comparator only sees `variant_A_response.md` and `variant_B_response.md` (by path, not by variant name). It writes `comparison.json` with a blind `winner` (`A`, `B`, or `TIE`), `rubric`, `reasoning`, and `notable_differences`. It does NOT write `assignment`, `winner_variant`, `comparison_mode`, `baseline_iteration`, or `previous_iteration`.
 
 **Step 3b-iii (post, deterministic):**
 
@@ -241,7 +254,7 @@ For iteration 1, omit both flags.
 
 This produces `benchmark.json` (including `per_eval_comparisons` — every comparator's resolved verdict, reasoning, rubric scores, and per-expectation cross-variant breakdown) and `benchmark.md`.
 
-Then spawn `skill-eval-analyzer` to read `benchmark.json`. Tell the analyzer to write its observations to `evals/skills/{skill_name}/workspace/iteration-{N}/analyzer_notes.json`. After it finishes, re-run `aggregate_benchmark.py` with the same flags so notes are folded into the final `benchmark.md`.
+Then spawn `skill-eval-analyzer` (named `analyzer`) to read `benchmark.json`. Tell the analyzer to write its observations to `evals/skills/{skill_name}/workspace/iteration-{N}/analyzer_notes.json`. After it finishes, re-run `aggregate_benchmark.py` with the same flags so notes are folded into the final `benchmark.md`.
 
 ### GATE 3: Grading Complete
 
@@ -274,7 +287,7 @@ This opens a single unified report with 3 pages:
 
 An iteration timeline in the top bar lets users navigate between iterations. Selecting an older iteration truncates the Progression view to that point in time and shows that iteration's Benchmark and Review data.
 
-**Optional host-provided usage file:** `generate_review.py` accepts `--usage-output-file PATH` only for static generation with `--static OUTPUT.html`. Copilot CLI creates its final usage file only after the CLI process exits; this skill's agent does not launch or relaunch Copilot and must not try to use a file that is not yet available. Host/CI owns the CLI option and any post-exit static report regeneration; see the [host/CI integration instructions](../../docs/skills/skill-eval-runner/README.md).
+**Optional host-provided usage file:** `generate_review.py` accepts `--usage-output-file PATH` only for static generation with `--static OUTPUT.html`. Copilot CLI creates its final usage file only after the CLI process exits; this skill's agent does not launch or relaunch Copilot and must not try to use a file that is not yet available. Host/CI owns the CLI option and any post-exit static report regeneration, including the optional `--copilot-events-file` that attributes usage per eval from the sub-agent names; see the [host/CI integration instructions](../../docs/skills/skill-eval-runner/README.md).
 
 ### Present summary
 
@@ -326,6 +339,7 @@ Skipped:       {skipped} without_skill runs reused from baseline (iteration 1)
 | Not writing `outputs/notification.json` when the Task return has timing/usage fields | Loses host-level token and duration telemetry | Parent MUST inspect every Task return and write `outputs/notification.json` when any useful field is present (finalizer consumes and deletes it) |
 | Re-running without_skill for existing evals in iteration 2+ | Wasted execution time and tokens | `prepare_workspace.py` only creates `current_skill/` for regression evals |
 | Comparing current vs without_skill for regression evals | Wrong signal — doesn't measure improvement | `assign_ab.py` pairs `current_skill` vs `previous_skill` in regression mode |
+| Spawning sub-agents without the eval `name` when the host supports it | Host/CI usage reports cannot attribute tokens to evals or variants | Use the names in [Sub-agent names](#sub-agent-names-mandatory-when-supported) for every spawn and re-launch |
 
 ---
 

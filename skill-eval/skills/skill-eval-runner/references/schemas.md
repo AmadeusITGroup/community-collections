@@ -506,12 +506,14 @@ aggregator derives their sum. A sidecar with no useful field is omitted.
 ## `usage_summary.json` (post-Copilot-CLI report input)
 
 After GitHub Copilot CLI exits, run
-`generate_review.py WORKSPACE --skill-name SKILL --iteration N --usage-output-file PATH --static OUTPUT.html`.
+`generate_review.py WORKSPACE --skill-name SKILL --iteration N --usage-output-file PATH [--copilot-events-file EVENTS] --static OUTPUT.html`.
 The command parses the final usage JSON and writes this sanitized, versioned
-summary into the corresponding iteration directory. The report generator
+summary into the corresponding iteration directory. The optional session
+events file only maps sub-agent ids to the task names the runner assigned
+(`eval-{id}-{role}[-{variant}]`). The report generator
 consumes the summary directly; `metrics.json` and `benchmark.json` are not
-rewritten. Raw CLI usage JSON, task identifiers, agent display names, prompts,
-and the input file path are not copied into this sidecar.
+rewritten. Raw CLI usage JSON, task names and identifiers, agent display names,
+prompts, and input file paths are not copied into this sidecar.
 
 ```json
 {
@@ -553,9 +555,12 @@ and the input file path are not copied into this sidecar.
 Session metrics come from `modelMetrics`; `agentMetrics` supplies role-level
 detail. They overlap and must never be added together. `eval_count` is the
 number of distinct eval IDs found in the iteration. `eval_agents` may contain
-`eval_id`, `role`, optional uniquely attributed `variant`, `models`, and
-available token/cache/API-duration counters. `other_agents` groups non-eval
-roles into safe labels and includes the same available counters. Cached input
+`eval_id`, `role`, optional `variant` (from the task name, or inferred when the
+eval ran a single variant), `models`, and available token/cache/API-duration
+counters; records with the same eval, role, and variant are summed.
+`other_agents` groups non-eval agents by safe label (`Runner`, `Executor`,
+`Analyzer`, `Comparator`, `Grader`, `Recovery`, or `Other agent`) and model
+set, and includes the same available counters. Cached input
 and reasoning tokens are subsets, not additive totals. An equal session
 average is a display fallback only; comparator and recovery costs remain in
 aggregate totals and are not shown on Review cards.
