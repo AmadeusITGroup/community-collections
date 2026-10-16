@@ -1,4 +1,4 @@
-# yaml-language-server: $schema=https://raw.githubusercontent.com/AmadeusITGroup/prompt-registry/refs/heads/main/schemas/collection.schema.json
+# yaml-language-server: $schema=https://raw.githubusercontent.com/AmadeusITGroup/ai-primitives-hub/refs/heads/main/packages/core/src/public/schemas/collection.schema.json
 id: foursight-code-review
 name: FourSight Code Review
 description: "Skill and agents to do PR reviews with four specialized subagents acting as distinct personas — QA engineer, tech debt reviewer, functional analyst, and architect — each providing independent findings consolidated into a single prioritized report."
