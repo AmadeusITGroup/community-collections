@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import json
 import re
-from collections import defaultdict
+from collections import defaultdict, deque
 from pathlib import Path
 from typing import Any, Mapping
 
@@ -316,10 +316,13 @@ def load_task_names(events_path: Path) -> dict[str, str]:
     Joins ``tool.execution_start`` events of the ``task`` tool (which carry
     the requested ``name``) with ``subagent.started`` events (which carry the
     resulting ``agentId``) on their shared ``toolCallId``. Malformed lines and
-    unrelated events are skipped. The returned names stay in memory only.
+    unrelated events are skipped. Eval agents may be launched by the main
+    session or through a chain of Skill Eval Runner definitions. Descendants
+    of other agents are excluded. The returned names stay in memory only.
     """
-    names_by_call: dict[str, str] = {}
+    tasks_by_call: dict[str, tuple[str | None, str | None, bool]] = {}
     call_by_agent: dict[str, list[str]] = {}
+    runner_by_call: dict[str, bool] = {}
     try:
         with events_path.open(encoding="utf-8", errors="replace") as handle:
             for line in handle:
@@ -338,29 +341,57 @@ def load_task_names(events_path: Path) -> dict[str, str]:
                 if not isinstance(call_id, str) or not call_id:
                     continue
                 event_type = event.get("type")
-                # Task starts made inside a sub-agent carry its agentId; they
-                # are nested helpers, not eval agents launched by the runner.
-                if event_type == "tool.execution_start" and "agentId" not in event:
+                if event_type == "tool.execution_start":
                     arguments = data.get("arguments")
-                    name = (
-                        arguments.get("name") if isinstance(arguments, dict) else None
-                    )
-                    if data.get("toolName") == "task" and isinstance(name, str) and name:
-                        names_by_call[call_id] = name
+                    if data.get("toolName") == "task" and isinstance(arguments, dict):
+                        name = arguments.get("name")
+                        if not isinstance(name, str) or not name:
+                            name = None
+                        parent = event.get("agentId")
+                        if parent is not None and (
+                            not isinstance(parent, str) or not parent
+                        ):
+                            continue
+                        definition = arguments.get("agent_type")
+                        is_runner = (
+                            isinstance(definition, str)
+                            and _normalize_name(definition) == "skill-eval-runner"
+                        )
+                        tasks_by_call[call_id] = (name, parent, is_runner)
                 elif event_type == "subagent.started":
                     agent_id = event.get("agentId")
                     if isinstance(agent_id, str) and agent_id:
                         call_by_agent.setdefault(agent_id, []).append(call_id)
+                        definition = data.get("agentName")
+                        if isinstance(definition, str):
+                            runner_by_call[call_id] = (
+                                _normalize_name(definition) == "skill-eval-runner"
+                            )
     except OSError as exc:
         raise CopilotUsageError(
             "Copilot session events file could not be read"
         ) from exc
-    task_names: dict[str, str] = {}
+    children: dict[str | None, list[tuple[str, str | None, bool]]] = defaultdict(list)
     for agent_id, call_ids in call_by_agent.items():
         for call_id in call_ids:
-            if call_id in names_by_call:
-                task_names[agent_id] = names_by_call[call_id]
+            if call_id in tasks_by_call:
+                name, parent, requested_runner = tasks_by_call[call_id]
+                children[parent].append(
+                    (agent_id, name, runner_by_call.get(call_id, requested_runner))
+                )
                 break
+    task_names: dict[str, str] = {}
+    parents: deque[str | None] = deque([None])
+    visited: set[str] = set()
+    while parents:
+        for agent_id, name, is_runner in children.get(parents.popleft(), []):
+            if agent_id in visited:
+                continue
+            visited.add(agent_id)
+            if name is not None:
+                task_names[agent_id] = name
+            if is_runner:
+                parents.append(agent_id)
     return task_names
 
 

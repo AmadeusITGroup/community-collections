@@ -8,7 +8,7 @@ user-invocable: true
 license: SEE LICENSE IN LICENSE
 metadata:
   author: Cyril Colombel
-  version: "1.1.1"
+  version: "1.1.2"
 ---
 
 # Skill Eval Runner

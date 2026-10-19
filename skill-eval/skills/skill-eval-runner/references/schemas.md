@@ -509,8 +509,14 @@ After GitHub Copilot CLI exits, run
 `generate_review.py WORKSPACE --skill-name SKILL --iteration N --usage-output-file PATH [--copilot-events-file EVENTS] --static OUTPUT.html`.
 The command parses the final usage JSON and writes this sanitized, versioned
 summary into the corresponding iteration directory. The optional session
-events file only maps sub-agent ids to the task names the runner assigned
-(`eval-{id}-{role}[-{variant}]`). The report generator
+events file maps sub-agent ids to the task names the runner assigned
+(`eval-{id}-{role}[-{variant}]`). Parent relationships allow attribution
+through a chain of `Skill Eval Runner` / `skill-eval-runner` definitions.
+The main session and reachable runner agents may launch eval agents; descendants
+of non-runner agents remain unlinked to avoid attributing helpers as eval agents.
+Unknown parents and cycles are excluded. Definition metadata from the actual
+sub-agent start takes precedence over the requested task agent type.
+The report generator
 consumes the summary directly; `metrics.json` and `benchmark.json` are not
 rewritten. Raw CLI usage JSON, task names and identifiers, agent display names,
 prompts, and input file paths are not copied into this sidecar.
