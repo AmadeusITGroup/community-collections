@@ -675,6 +675,52 @@ class UsageSummaryTests(unittest.TestCase):
         ):
             self.assertNotIn(private, report_text)
 
+    def test_delegated_runner_events_render_per_variant_usage(self) -> None:
+        iteration = self._iteration(1)
+        output = self.ws / "report.html"
+        events = [
+            json.loads(line) for line in _CLI_EVENTS_FIXTURE.read_text().splitlines()
+        ]
+        for event in events:
+            if event.get("type") == "tool.execution_start":
+                event["agentId"] = "delegated-runner"
+        events.extend([
+            {
+                "type": "tool.execution_start",
+                "data": {
+                    "toolCallId": "runner-call",
+                    "toolName": "task",
+                    "arguments": {
+                        "name": "private-delegated-task",
+                        "agent_type": "Skill Eval Runner",
+                    },
+                },
+            },
+            {
+                "type": "subagent.started",
+                "agentId": "delegated-runner",
+                "data": {"toolCallId": "runner-call", "agentName": "Skill Eval Runner"},
+            },
+        ])
+        events_file = self.ws / "nested-events.jsonl"
+        events_file.write_text("".join(json.dumps(e) + "\n" for e in events))
+
+        result = self._generate_static(
+            iteration, output, _CLI_USAGE_FIXTURE, events_file
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertNotIn("Warning", result.stderr)
+        summary = json.loads((iteration / "usage_summary.json").read_text())
+        self.assertEqual(len(summary["eval_agents"]), 5)
+        self.assertEqual(
+            {a["variant"] for a in summary["eval_agents"] if a["role"] == "executor"},
+            {"current_skill", "without_skill"},
+        )
+        report = output.read_text()
+        for private in ("private-delegated-task", "delegated-runner", "runner-call"):
+            self.assertNotIn(private, report)
+
     def test_copilot_events_file_requires_usage_output_file(self) -> None:
         iteration = self._iteration(1)
         output = self.ws / "report.html"

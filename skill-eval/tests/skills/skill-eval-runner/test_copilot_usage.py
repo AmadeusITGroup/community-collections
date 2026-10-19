@@ -397,6 +397,145 @@ class CopilotCliAttributionTests(unittest.TestCase):
         )
         return path
 
+    @staticmethod
+    def _launch(call_id, agent_id, name, agent_type, parent=None):
+        start = {
+            "type": "tool.execution_start",
+            "data": {
+                "toolCallId": call_id,
+                "toolName": "task",
+                "arguments": {"name": name, "agent_type": agent_type},
+            },
+        }
+        if parent is not None:
+            start["agentId"] = parent
+        return [
+            start,
+            {
+                "type": "subagent.started",
+                "agentId": agent_id,
+                "data": {"toolCallId": call_id, "agentName": agent_type},
+            },
+        ]
+
+    def test_eval_agents_under_delegated_runners_are_attributed(self) -> None:
+        for depth in (1, 2):
+            for reverse in (False, True):
+                with self.subTest(depth=depth, reverse=reverse):
+                    events = []
+                    parent = None
+                    for level in range(depth):
+                        runner = f"runner-{level}"
+                        events += self._launch(
+                            runner, runner, "private-run-evals", "Skill Eval Runner",
+                            parent,
+                        )
+                        parent = runner
+                    children = [
+                        json.loads(line)
+                        for line in _CLI_EVENTS_FIXTURE.read_text().splitlines()
+                    ]
+                    for event in children:
+                        if event.get("type") == "tool.execution_start":
+                            event["agentId"] = parent
+                    events += children
+                    if reverse:
+                        events.reverse()
+                    names = usage_module.load_task_names(self._write_events(events))
+                    summary = self._normalize(names)
+                    self.assertEqual(len(summary["eval_agents"]), 5)
+                    self.assertEqual(summary["session"]["total_tokens"], 1903)
+                    self.assertIn(
+                        ("eval-1", "executor", "current_skill", 300, 30, 330),
+                        self._eval_rows(summary),
+                    )
+                    self.assertNotIn("private-run-evals", json.dumps(summary))
+
+    def test_runner_identity_comes_from_definition_not_task_name(self) -> None:
+        for definition in ("Skill Eval Runner", "skill-eval-runner"):
+            events = self._launch("r", "runner", "arbitrary", definition)
+            # The task arguments alone can identify a runner when start
+            # metadata does not include the definition.
+            events[1]["data"].pop("agentName")
+            events += self._launch(
+                "e", "executor", "eval-1-executor-current-skill",
+                "skill-eval-executor", "runner",
+            )
+            self.assertIn(
+                "executor",
+                usage_module.load_task_names(self._write_events(events)),
+            )
+
+        events = self._launch("r", "runner", "arbitrary", "Skill Eval Runner")
+        events[0]["data"]["arguments"].pop("agent_type")
+        events += self._launch(
+            "e", "executor", "eval-1-executor-current-skill",
+            "skill-eval-executor", "runner",
+        )
+        self.assertIn(
+            "executor", usage_module.load_task_names(self._write_events(events))
+        )
+
+        # Actual start metadata takes precedence over the requested definition.
+        events[0]["data"]["arguments"]["agent_type"] = "Skill Eval Runner"
+        events[1]["data"]["agentName"] = "general-purpose"
+        self.assertNotIn(
+            "executor", usage_module.load_task_names(self._write_events(events))
+        )
+
+        events = self._launch("r", "runner", "Skill Eval Runner", "general-purpose")
+        events += self._launch(
+            "e", "executor", "eval-1-executor-current-skill",
+            "skill-eval-executor", "runner",
+        )
+        self.assertNotIn(
+            "executor", usage_module.load_task_names(self._write_events(events))
+        )
+
+    def test_helpers_inside_eval_agents_cannot_spoof_eval_attribution(self) -> None:
+        events = self._launch("r", "runner", "run", "Skill Eval Runner")
+        events += self._launch(
+            "e", "executor", "eval-1-executor-current-skill",
+            "skill-eval-executor", "runner",
+        )
+        events += self._launch(
+            "h", "helper", "eval-1-grader-current-skill",
+            "skill-eval-grader", "executor",
+        )
+        events += self._launch(
+            "n", "nested-runner", "run", "Skill Eval Runner", "executor"
+        )
+        events += self._launch(
+            "f", "fake-eval", "eval-1-executor-without-skill",
+            "skill-eval-executor", "nested-runner",
+        )
+        names = usage_module.load_task_names(self._write_events(events))
+        self.assertEqual(set(names), {"runner", "executor"})
+
+    def test_orphan_and_cyclic_runner_chains_are_not_attributed(self) -> None:
+        events = self._launch("r1", "r1", "run", "Skill Eval Runner", "r2")
+        events += self._launch("r2", "r2", "run", "Skill Eval Runner", "r1")
+        events += self._launch(
+            "e", "executor", "eval-1-executor-current-skill",
+            "skill-eval-executor", "missing",
+        )
+        self.assertEqual(
+            usage_module.load_task_names(self._write_events(events)), {}
+        )
+
+    def test_unnamed_runner_wrappers_preserve_named_eval_children(self) -> None:
+        events = self._launch("r1", "outer", None, "Skill Eval Runner")
+        events[0]["data"]["arguments"].pop("name")
+        events += self._launch("r2", "inner", "", "Skill Eval Runner", "outer")
+        events += self._launch(
+            "e", "executor", "eval-1-executor-current-skill",
+            "skill-eval-executor", "inner",
+        )
+        self.assertEqual(
+            usage_module.load_task_names(self._write_events(events)),
+            {"executor": "eval-1-executor-current-skill"},
+        )
+
     def test_common_task_name_variations_are_attributed(self) -> None:
         for name in (
             "eval-1-synthetic-executor-current-skill",
